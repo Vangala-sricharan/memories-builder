@@ -1,41 +1,41 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { ParticleShape } from '../types';
 
 interface Particle {
-  // Current coordinates
+  // Current spatial coordinates
   x: number;
   y: number;
-  z: number; // Depth factor (0.3 to 2.5)
+  z: number; // Continuous depth: 0.35 (distant background) to 2.8 (near foreground)
+  tier: 'background' | 'midground' | 'foreground';
 
-  // Velocities
+  // Physical motion & inertia
   vx: number;
   vy: number;
+  drag: number; // Personalized air resistance / dampening (0.88 - 0.95)
+  springStrength: number; // Elastic pull toward target when morphing
+  swirlDirection: number; // 1 or -1 for organic flocking swirl
 
-  // Origin / Target coordinates for morphing
-  originX: number;
-  originY: number;
+  // Morphing targets
   targetX: number;
   targetY: number;
+  homeX: number; // Abstract wander anchor
+  homeY: number;
 
-  // Dispersion coordinates during transition
-  disperseX: number;
-  disperseY: number;
-
-  // Physical properties
+  // Visual appearance
   size: number;
   baseAlpha: number;
   alpha: number;
   colorType: 'white' | 'red' | 'gray';
-  colorString: string;
-  glowSize: number;
+  colorRgb: string; // "255, 255, 255" | "229, 9, 20" | "170, 170, 175"
+  glowRadius: number;
 
-  // Organic wobble/drift
-  wobbleSpeed: number;
-  wobbleAngle: number;
-  wobbleRadius: number;
-
-  // Transition individual timing
-  delay: number;
+  // Organic atmospheric drift & breathing
+  driftPhase: number;
+  driftSpeed: number;
+  driftRadiusX: number;
+  driftRadiusY: number;
+  pulsePhase: number;
+  pulseSpeed: number;
 }
 
 interface ParticleBackgroundProps {
@@ -55,28 +55,32 @@ export const ParticleBackground: React.FC<ParticleBackgroundProps> = ({
   const particlesRef = useRef<Particle[]>([]);
   const animationFrameIdRef = useRef<number | null>(null);
 
-  // Smooth mouse/gyroscope parallax state
-  const mouseRef = useRef({ x: 0, y: 0, targetX: 0, targetY: 0 });
+  // Smooth mouse / pointer parallax state with inertia
+  const pointerRef = useRef({ x: 0, y: 0, targetX: 0, targetY: 0 });
   const gyroRef = useRef({ gamma: 0, beta: 0, targetGamma: 0, targetBeta: 0 });
   const isGyroAvailableRef = useRef(false);
 
-  // Transition state
-  const transitionRef = useRef({
-    progress: 1, // 1 means reached target shape
-    isTransitioning: false,
-    duration: 120, // frames (~2 seconds at 60fps)
-    elapsed: 120,
-    fromShape: 'abstract' as ParticleShape,
-    toShape: 'abstract' as ParticleShape,
-  });
-
+  // Morph state tracking
+  const currentShapeRef = useRef<ParticleShape>(currentShape);
+  const morphIntensityRef = useRef(0); // 0 = relaxed abstract drift, 1 = tight shape formation
   const prefersReducedMotionRef = useRef(false);
 
-  // Initialize and handle resize
+  // Keep currentShapeRef in sync and update targets seamlessly
+  useEffect(() => {
+    currentShapeRef.current = currentShape;
+    const canvas = canvasRef.current;
+    if (!canvas || !particlesRef.current.length) return;
+
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    assignShapeTargets(particlesRef.current, currentShape, width, height);
+  }, [currentShape]);
+
+  // Main lifecycle: Setup canvas, particles, event listeners, and render loop
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) return;
 
     prefersReducedMotionRef.current = window.matchMedia(
@@ -86,6 +90,7 @@ export const ParticleBackground: React.FC<ParticleBackgroundProps> = ({
     let width = (canvas.width = window.innerWidth);
     let height = (canvas.height = window.innerHeight);
 
+    // Responsive setup with device pixel ratio clamp
     const handleResize = () => {
       if (!canvas) return;
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -95,35 +100,72 @@ export const ParticleBackground: React.FC<ParticleBackgroundProps> = ({
       canvas.height = height * dpr;
       canvas.style.width = `${width}px`;
       canvas.style.height = `${height}px`;
+      ctx.setTransform(1, 0, 0, 1, 0, 0); // reset scale before scaling
       ctx.scale(dpr, dpr);
 
-      // Re-assign targets when window size changes
-      assignShapeTargets(particlesRef.current, currentShape, width, height);
+      // Re-assign shape targets according to new viewport dimensions
+      assignShapeTargets(particlesRef.current, currentShapeRef.current, width, height);
     };
 
-    // Calculate particle count adaptively
-    const isMobile = window.innerWidth < 768;
-    const particleCount = isMobile ? 110 : 250;
+    // Adaptive particle count based on viewport capability:
+    // Mobile (<768px): 85 | Tablet (768-1024px): 140 | Desktop (>1024px): 220
+    const screenWidth = window.innerWidth;
+    const particleCount = screenWidth < 768 ? 85 : screenWidth < 1024 ? 140 : 220;
 
-    // Generate initial particle system
+    // Generate balanced layered particle field with 3 distinct depth tiers
     const newParticles: Particle[] = [];
     for (let i = 0; i < particleCount; i++) {
-      const z = 0.3 + Math.random() * 2.2;
-      const randColor = Math.random();
-      let colorType: 'white' | 'red' | 'gray' = 'white';
-      let colorString = 'rgba(255, 255, 255, ';
-      let baseAlpha = 0.2 + Math.random() * 0.6;
+      // Stratified depth distribution:
+      // ~45% background (deep stars/dust), ~40% midground (ambient field), ~15% foreground (cinematic sparks)
+      const depthRoll = Math.random();
+      let z: number;
+      let tier: 'background' | 'midground' | 'foreground';
 
-      if (randColor < 0.22) {
-        // Red accent particle
+      if (depthRoll < 0.45) {
+        tier = 'background';
+        z = 0.35 + Math.random() * 0.55; // 0.35 - 0.90
+      } else if (depthRoll < 0.85) {
+        tier = 'midground';
+        z = 0.91 + Math.random() * 0.89; // 0.91 - 1.80
+      } else {
+        tier = 'foreground';
+        z = 1.81 + Math.random() * 0.99; // 1.81 - 2.80
+      }
+
+      // Color classification (Red accent highlights, warm cinematic white, graphite depth)
+      const colorRoll = Math.random();
+      let colorType: 'white' | 'red' | 'gray' = 'white';
+      let colorRgb = '255, 255, 255';
+      let baseAlpha = 0.35;
+
+      if (colorRoll < 0.22) {
+        // Red cinematic ember highlight
         colorType = 'red';
-        colorString = 'rgba(229, 9, 20, ';
-        baseAlpha = 0.35 + Math.random() * 0.55;
-      } else if (randColor < 0.45) {
-        // Subtle gray particle
+        colorRgb = '229, 9, 20';
+        baseAlpha = tier === 'foreground' ? 0.75 : tier === 'midground' ? 0.55 : 0.35;
+      } else if (colorRoll < 0.50) {
+        // Soft graphite gray (enhances spatial depth without visual noise)
         colorType = 'gray';
-        colorString = 'rgba(160, 160, 160, ';
-        baseAlpha = 0.15 + Math.random() * 0.35;
+        colorRgb = '170, 170, 175';
+        baseAlpha = tier === 'foreground' ? 0.45 : tier === 'midground' ? 0.28 : 0.18;
+      } else {
+        // Pristine white spark
+        colorType = 'white';
+        colorRgb = '255, 255, 255';
+        baseAlpha = tier === 'foreground' ? 0.85 : tier === 'midground' ? 0.50 : 0.25;
+      }
+
+      // Size scales physically with depth:
+      // Background: 0.8 - 1.4px | Midground: 1.5 - 2.4px | Foreground: 2.5 - 3.8px
+      const baseRadius = 0.75 + Math.random() * 0.85;
+      const size = Math.max(0.6, baseRadius * (z * 0.72));
+
+      // Glow size is restricted to foreground embers/sparks to avoid heavy GPU blur
+      let glowRadius = 0;
+      if (tier === 'foreground') {
+        glowRadius = colorType === 'red' ? 6.5 : 4.0;
+      } else if (tier === 'midground' && colorType === 'red') {
+        glowRadius = 3.5;
       }
 
       const x = Math.random() * width;
@@ -133,24 +175,28 @@ export const ParticleBackground: React.FC<ParticleBackgroundProps> = ({
         x,
         y,
         z,
-        vx: (Math.random() - 0.5) * 0.4,
-        vy: (Math.random() - 0.5) * 0.4,
-        originX: x,
-        originY: y,
+        tier,
+        vx: (Math.random() - 0.5) * (0.15 * z),
+        vy: (Math.random() - 0.5) * (0.15 * z),
+        drag: 0.91 + Math.random() * 0.04, // slight individual drag variability
+        springStrength: 0.018 + Math.random() * 0.014,
+        swirlDirection: Math.random() > 0.5 ? 1 : -1,
         targetX: x,
         targetY: y,
-        disperseX: x + (Math.random() - 0.5) * 350,
-        disperseY: y + (Math.random() - 0.5) * 350,
-        size: (0.8 + Math.random() * 1.8) * (z * 0.8),
+        homeX: x,
+        homeY: y,
+        size,
         baseAlpha,
         alpha: baseAlpha,
         colorType,
-        colorString,
-        glowSize: colorType === 'red' ? 6 : 3,
-        wobbleSpeed: 0.005 + Math.random() * 0.015,
-        wobbleAngle: Math.random() * Math.PI * 2,
-        wobbleRadius: 0.4 + Math.random() * 1.2,
-        delay: Math.random() * 25,
+        colorRgb,
+        glowRadius,
+        driftPhase: Math.random() * Math.PI * 2,
+        driftSpeed: (0.003 + Math.random() * 0.006) * (0.6 + z * 0.4),
+        driftRadiusX: (0.8 + Math.random() * 1.6) * z,
+        driftRadiusY: (0.6 + Math.random() * 1.4) * z,
+        pulsePhase: Math.random() * Math.PI * 2,
+        pulseSpeed: 0.01 + Math.random() * 0.02,
       });
     }
 
@@ -158,25 +204,26 @@ export const ParticleBackground: React.FC<ParticleBackgroundProps> = ({
     handleResize();
     window.addEventListener('resize', handleResize);
 
-    // Mouse parallax tracking
+    // Desktop Pointer Parallax with subtle normalized amplitude
     const handleMouseMove = (e: MouseEvent) => {
-      if (!interactive) return;
+      if (!interactive || prefersReducedMotionRef.current) return;
       const normX = (e.clientX / window.innerWidth) * 2 - 1;
       const normY = (e.clientY / window.innerHeight) * 2 - 1;
-      mouseRef.current.targetX = normX * 35;
-      mouseRef.current.targetY = normY * 35;
+      // Maximum parallax displacement: 30px on desktop
+      pointerRef.current.targetX = normX * 30;
+      pointerRef.current.targetY = normY * 30;
     };
 
-    // Mobile Gyroscope / DeviceOrientation tracking
+    // Mobile Device Orientation Gyroscope Parallax (gentle, safe fallback)
     const handleOrientation = (e: DeviceOrientationEvent) => {
-      if (!interactive) return;
+      if (!interactive || prefersReducedMotionRef.current) return;
       if (e.gamma !== null && e.beta !== null) {
         isGyroAvailableRef.current = true;
-        // Clamp gamma and beta to avoid wild motion
-        const clampedGamma = Math.max(-45, Math.min(45, e.gamma));
-        const clampedBeta = Math.max(-45, Math.min(45, e.beta - 45)); // assume holding around 45deg
-        gyroRef.current.targetGamma = (clampedGamma / 45) * 30;
-        gyroRef.current.targetBeta = (clampedBeta / 45) * 30;
+        // Clamp gamma and beta to avoid disorienting jumps
+        const clampedGamma = Math.max(-40, Math.min(40, e.gamma));
+        const clampedBeta = Math.max(-40, Math.min(40, e.beta - 45)); // standard holding angle
+        gyroRef.current.targetGamma = (clampedGamma / 40) * 22;
+        gyroRef.current.targetBeta = (clampedBeta / 40) * 22;
       }
     };
 
@@ -185,19 +232,23 @@ export const ParticleBackground: React.FC<ParticleBackgroundProps> = ({
       window.addEventListener('deviceorientation', handleOrientation, { passive: true });
     }
 
-    // Tab visibility handling (pause when hidden)
-    let isTabVisible = true;
+    // Tab visibility handling: pause calculation and rendering when page is hidden
+    let isTabVisible = !document.hidden;
     const handleVisibilityChange = () => {
       isTabVisible = !document.hidden;
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // Main animation loop
-    let lastTime = performance.now();
+    // Initial shape target setup
+    assignShapeTargets(newParticles, currentShapeRef.current, width, height);
 
-    const render = (time: number) => {
-      const dt = Math.min((time - lastTime) / 1000, 0.1);
-      lastTime = time;
+    // Main animation render loop with requestAnimationFrame
+    let lastTimestamp = performance.now();
+
+    const render = (now: number) => {
+      // Calculate delta time capped at 100ms to prevent huge jumps after tab resume
+      const dt = Math.min((now - lastTimestamp) / 1000, 0.1);
+      lastTimestamp = now;
 
       if (!isTabVisible) {
         animationFrameIdRef.current = requestAnimationFrame(render);
@@ -206,107 +257,99 @@ export const ParticleBackground: React.FC<ParticleBackgroundProps> = ({
 
       ctx.clearRect(0, 0, width, height);
 
-      // Smooth inertia for mouse/gyro parallax
-      mouseRef.current.x += (mouseRef.current.targetX - mouseRef.current.x) * 0.05;
-      mouseRef.current.y += (mouseRef.current.targetY - mouseRef.current.y) * 0.05;
+      // Smooth critically-damped pointer / gyroscope parallax interpolation
+      const parallaxEase = prefersReducedMotionRef.current ? 0.01 : 0.045;
+      pointerRef.current.x += (pointerRef.current.targetX - pointerRef.current.x) * parallaxEase;
+      pointerRef.current.y += (pointerRef.current.targetY - pointerRef.current.y) * parallaxEase;
 
-      gyroRef.current.gamma += (gyroRef.current.targetGamma - gyroRef.current.gamma) * 0.05;
-      gyroRef.current.beta += (gyroRef.current.targetBeta - gyroRef.current.beta) * 0.05;
+      gyroRef.current.gamma += (gyroRef.current.targetGamma - gyroRef.current.gamma) * parallaxEase;
+      gyroRef.current.beta += (gyroRef.current.targetBeta - gyroRef.current.beta) * parallaxEase;
 
-      const parallaxX = isGyroAvailableRef.current
+      const activeParallaxX = isGyroAvailableRef.current
         ? gyroRef.current.gamma
-        : mouseRef.current.x;
-      const parallaxY = isGyroAvailableRef.current
+        : pointerRef.current.x;
+      const activeParallaxY = isGyroAvailableRef.current
         ? gyroRef.current.beta
-        : mouseRef.current.y;
+        : pointerRef.current.y;
 
-      // Handle morph transition progress
-      const trans = transitionRef.current;
-      if (trans.isTransitioning) {
-        trans.elapsed += 1;
-        trans.progress = Math.min(1, trans.elapsed / trans.duration);
-        if (trans.progress >= 1) {
-          trans.isTransitioning = false;
-        }
-      }
-
-      // Render and update each particle
       const particles = particlesRef.current;
       const len = particles.length;
+      const isAbstract = currentShapeRef.current === 'abstract';
+      const intensityMul = intensity === 'vibrant' ? 1.25 : intensity === 'subtle' ? 0.75 : 1.0;
+      const motionScale = prefersReducedMotionRef.current ? 0.2 : 1.0;
 
       for (let i = 0; i < len; i++) {
         const p = particles[i];
 
-        // Wobble oscillation
-        p.wobbleAngle += p.wobbleSpeed;
-        const wobbleOffsetX = Math.cos(p.wobbleAngle) * p.wobbleRadius;
-        const wobbleOffsetY = Math.sin(p.wobbleAngle) * p.wobbleRadius;
+        // 1. Organic multi-frequency atmospheric drift & breathing
+        p.driftPhase += p.driftSpeed * motionScale;
+        p.pulsePhase += p.pulseSpeed * motionScale;
+        const driftX = Math.cos(p.driftPhase) * p.driftRadiusX;
+        const driftY = Math.sin(p.driftPhase * 1.3) * p.driftRadiusY;
+        const pulse = Math.sin(p.pulsePhase) * 0.12;
 
-        // If shape is abstract, particles drift freely
-        if (currentShape === 'abstract' && !trans.isTransitioning) {
-          p.x += p.vx + wobbleOffsetX * 0.1;
-          p.y += p.vy + wobbleOffsetY * 0.1;
+        if (isAbstract) {
+          // Free 3D atmospheric wandering with natural inertia
+          p.x += (p.vx + driftX * 0.1) * motionScale;
+          p.y += (p.vy + driftY * 0.1) * motionScale;
 
-          // Wrap boundaries smoothly
-          if (p.x < -20) p.x = width + 20;
-          if (p.x > width + 20) p.x = -20;
-          if (p.y < -20) p.y = height + 20;
-          if (p.y > height + 20) p.y = -20;
+          // Gentle smooth boundary wrapping (margin 40px)
+          if (p.x < -40) p.x = width + 40;
+          if (p.x > width + 40) p.x = -40;
+          if (p.y < -40) p.y = height + 40;
+          if (p.y > height + 40) p.y = -40;
         } else {
-          // Morphing / Formed State
-          if (trans.isTransitioning) {
-            // Organic multi-stage transition:
-            // 0 -> 0.35: Disperse outward
-            // 0.35 -> 1.0: Travel and converge onto target formation
-            const pTime = Math.max(0, trans.elapsed - p.delay) / Math.max(1, trans.duration - p.delay);
-            const clampedP = Math.min(1, Math.max(0, pTime));
+          // Structured Morphing Physics:
+          // Velocity continuity + gravitational spring toward target + tangential vortex swirl
+          const dx = p.targetX - p.x;
+          const dy = p.targetY - p.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
 
-            if (clampedP < 0.4) {
-              // Dispersal phase
-              const tDisperse = clampedP / 0.4;
-              const easeOut = Math.sin((tDisperse * Math.PI) / 2);
-              p.x = p.originX + (p.disperseX - p.originX) * easeOut;
-              p.y = p.originY + (p.disperseY - p.originY) * easeOut;
-            } else {
-              // Convergence phase
-              const tConverge = (clampedP - 0.4) / 0.6;
-              // Smooth cubic bezier easing
-              const easeIn = tConverge * tConverge * (3 - 2 * tConverge);
-              p.x = p.disperseX + (p.targetX - p.disperseX) * easeIn;
-              p.y = p.disperseY + (p.targetY - p.disperseY) * easeIn;
-            }
-          } else {
-            // Already in formation: maintain gentle spring orbit around target
-            const dx = p.targetX - p.x;
-            const dy = p.targetY - p.y;
-            p.vx = p.vx * 0.88 + dx * 0.03;
-            p.vy = p.vy * 0.88 + dy * 0.03;
-            p.x += p.vx + wobbleOffsetX * 0.2;
-            p.y += p.vy + wobbleOffsetY * 0.2;
-          }
+          // Spring pull with distance-attenuated acceleration
+          const springAcc = p.springStrength * Math.min(dist * 0.035, 4.0);
+          const directAngle = Math.atan2(dy, dx);
+
+          // Swirl effect decays smoothly as particle nears its formation destination
+          const swirlFactor = Math.min(1, dist / 180) * 0.45;
+          const motionAngle = directAngle + (Math.PI / 2) * p.swirlDirection * swirlFactor;
+
+          p.vx += Math.cos(motionAngle) * springAcc * motionScale;
+          p.vy += Math.sin(motionAngle) * springAcc * motionScale;
+
+          // Velocity damping / inertia
+          p.vx *= p.drag;
+          p.vy *= p.drag;
+
+          p.x += (p.vx + driftX * 0.06) * motionScale;
+          p.y += (p.vy + driftY * 0.06) * motionScale;
         }
 
-        // Apply depth parallax
-        const displayX = p.x + parallaxX * (p.z * 0.6);
-        const displayY = p.y + parallaxY * (p.z * 0.6);
+        // 2. Depth Parallax (Subtle 3D stereoscopic shift based on tier)
+        // Background barely shifts (0.2x), Midground shifts moderately (0.5x), Foreground shifts distinctly (1.0x)
+        const depthParallaxFactor = prefersReducedMotionRef.current 
+          ? 0 
+          : (p.z * 0.38 + 0.12);
+        const displayX = p.x + activeParallaxX * depthParallaxFactor;
+        const displayY = p.y + activeParallaxY * depthParallaxFactor;
 
-        // Alpha calculation based on intensity
-        const intensityMul = intensity === 'vibrant' ? 1.25 : intensity === 'subtle' ? 0.75 : 1;
-        const currentAlpha = Math.min(1, p.baseAlpha * intensityMul);
+        // 3. Opacity Calculation with subtle organic pulse
+        const renderAlpha = Math.min(
+          1,
+          Math.max(0.05, (p.baseAlpha + pulse) * intensityMul)
+        );
 
-        // Draw particle
+        // 4. Render Particle Dot
         ctx.beginPath();
         ctx.arc(displayX, displayY, p.size, 0, Math.PI * 2);
-        ctx.fillStyle = `${p.colorString}${currentAlpha})`;
+        ctx.fillStyle = `rgba(${p.colorRgb}, ${renderAlpha})`;
         ctx.fill();
 
-        // Soft glow for red and prominent white particles
-        if (p.colorType === 'red' || (p.colorType === 'white' && p.z > 1.8)) {
+        // 5. Cinematic Depth Glow (Preserved strictly for foreground embers & red highlights)
+        if (p.glowRadius > 0 && renderAlpha > 0.15) {
           ctx.beginPath();
-          ctx.arc(displayX, displayY, p.size + p.glowSize, 0, Math.PI * 2);
-          ctx.fillStyle = p.colorType === 'red' 
-            ? `rgba(229, 9, 20, ${currentAlpha * 0.18})` 
-            : `rgba(255, 255, 255, ${currentAlpha * 0.12})`;
+          ctx.arc(displayX, displayY, p.size + p.glowRadius, 0, Math.PI * 2);
+          const glowAlpha = p.colorType === 'red' ? renderAlpha * 0.20 : renderAlpha * 0.12;
+          ctx.fillStyle = `rgba(${p.colorRgb}, ${glowAlpha})`;
           ctx.fill();
         }
       }
@@ -329,53 +372,22 @@ export const ParticleBackground: React.FC<ParticleBackgroundProps> = ({
     };
   }, [intensity, interactive]);
 
-  // When currentShape prop changes, trigger morph transition
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !particlesRef.current.length) return;
-
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    const particles = particlesRef.current;
-
-    // Start transition
-    const trans = transitionRef.current;
-    trans.fromShape = trans.toShape;
-    trans.toShape = currentShape;
-    trans.isTransitioning = true;
-    trans.elapsed = 0;
-    trans.progress = 0;
-    trans.duration = prefersReducedMotionRef.current ? 40 : 100;
-
-    // For each particle, save origin, generate dispersal burst, compute new target
-    const burstMagnitude = Math.min(width, height) * 0.28;
-    for (let i = 0; i < particles.length; i++) {
-      const p = particles[i];
-      p.originX = p.x;
-      p.originY = p.y;
-
-      const angle = Math.random() * Math.PI * 2;
-      const dist = (0.3 + Math.random() * 0.7) * burstMagnitude;
-      p.disperseX = p.x + Math.cos(angle) * dist;
-      p.disperseY = p.y + Math.sin(angle) * dist;
-    }
-
-    assignShapeTargets(particles, currentShape, width, height);
-  }, [currentShape]);
-
   return (
     <div className={`pointer-events-none fixed inset-0 z-0 overflow-hidden ${className}`}>
       <canvas
         ref={canvasRef}
         className="block h-full w-full opacity-90 transition-opacity duration-1000"
       />
-      {/* Subtle cinematic radial vignette */}
+      {/* Subtle cinematic radial vignette to frame typography and visuals */}
       <div className="cinematic-vignette absolute inset-0 pointer-events-none" />
     </div>
   );
 };
 
-// Shape target position generator for particle morphing
+/**
+ * Shape Target Position Generator
+ * Assigns continuous 3D coordinate targets across Abstract, Heart, Star, Circle, Diamond, Balloon, Galaxy
+ */
 function assignShapeTargets(
   particles: Particle[],
   shape: ParticleShape,
@@ -383,41 +395,44 @@ function assignShapeTargets(
   height: number
 ) {
   const count = particles.length;
+  if (!count) return;
+
   const centerX = width * 0.5;
-  // Position shape slightly higher or centered nicely
+  // Position shape slightly higher on mobile for visual balance above text
   const centerY = height * (width < 768 ? 0.44 : 0.48);
   const minDim = Math.min(width, height);
 
   switch (shape) {
     case 'heart': {
-      // Parametric cardioid heart:
+      // Parametric cardioid heart equation:
       // x = 16 * sin^3(t)
       // y = - (13*cos(t) - 5*cos(2t) - 2*cos(3t) - cos(4t))
-      const scale = minDim * (width < 768 ? 0.02 : 0.024);
+      const scale = minDim * (width < 768 ? 0.020 : 0.024);
       for (let i = 0; i < count; i++) {
         const p = particles[i];
-        // Distribute points along perimeter and filled interior
         const isPerimeter = i < count * 0.65;
         const t = (i / (count * 0.65)) * Math.PI * 2;
-        
+
         let hx = 16 * Math.pow(Math.sin(t), 3);
         let hy = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
 
         if (!isPerimeter) {
-          // Scatter inside the heart volume
-          const fillRatio = Math.sqrt(Math.random()) * 0.82;
+          // Volume interior fill with natural density
+          const fillRatio = Math.sqrt(Math.random()) * 0.85;
           hx *= fillRatio;
           hy *= fillRatio;
         }
 
-        p.targetX = centerX + hx * scale + (Math.random() - 0.5) * 8;
-        p.targetY = centerY + hy * scale + (Math.random() - 0.5) * 8;
+        // Subtly vary target depth offset for 3D fullness
+        const jitter = (Math.random() - 0.5) * 6;
+        p.targetX = centerX + hx * scale + jitter;
+        p.targetY = centerY + hy * scale + jitter;
       }
       break;
     }
 
     case 'star': {
-      // 5-pointed star
+      // 5-pointed star geometry with layered inner & outer vertices
       const outerR = minDim * 0.28;
       const innerR = outerR * 0.42;
       for (let i = 0; i < count; i++) {
@@ -425,7 +440,7 @@ function assignShapeTargets(
         const seg = (i / count) * 10;
         const angle = (seg * Math.PI) / 5 - Math.PI / 2;
         const isOuter = Math.floor(seg) % 2 === 0;
-        const r = (isOuter ? outerR : innerR) * (0.85 + Math.random() * 0.2);
+        const r = (isOuter ? outerR : innerR) * (0.88 + Math.random() * 0.16);
 
         p.targetX = centerX + Math.cos(angle) * r;
         p.targetY = centerY + Math.sin(angle) * r;
@@ -434,76 +449,68 @@ function assignShapeTargets(
     }
 
     case 'circle': {
-      // Multi-tier orbital circles
+      // Concentric orbital rings with varying particle angular velocities
       for (let i = 0; i < count; i++) {
         const p = particles[i];
         const ring = i % 3;
-        const radius = (minDim * 0.12) + ring * (minDim * 0.08);
+        const radius = minDim * 0.11 + ring * (minDim * 0.075);
         const angle = (i / count) * Math.PI * 2 * 3;
-        p.targetX = centerX + Math.cos(angle) * radius + (Math.random() - 0.5) * 6;
-        p.targetY = centerY + Math.sin(angle) * radius + (Math.random() - 0.5) * 6;
+        p.targetX = centerX + Math.cos(angle) * radius + (Math.random() - 0.5) * 5;
+        p.targetY = centerY + Math.sin(angle) * radius + (Math.random() - 0.5) * 5;
       }
       break;
     }
 
     case 'diamond': {
-      // Faceted diamond gem outline and core
+      // Faceted diamond silhouette and radiant core
       const widthD = minDim * 0.32;
       const heightD = minDim * 0.42;
       for (let i = 0; i < count; i++) {
         const p = particles[i];
-        const t = (i / count);
+        const t = i / count;
         let tx = 0;
         let ty = 0;
         if (t < 0.25) {
-          // Top to right
           const s = t / 0.25;
           tx = s * (widthD / 2);
           ty = -heightD / 2 + s * (heightD / 2);
         } else if (t < 0.5) {
-          // Right to bottom
           const s = (t - 0.25) / 0.25;
           tx = (widthD / 2) * (1 - s);
           ty = s * (heightD / 2);
         } else if (t < 0.75) {
-          // Bottom to left
           const s = (t - 0.5) / 0.25;
           tx = -s * (widthD / 2);
           ty = (heightD / 2) * (1 - s);
         } else {
-          // Left to top
           const s = (t - 0.75) / 0.25;
           tx = -(widthD / 2) * (1 - s);
           ty = -s * (heightD / 2);
         }
-        p.targetX = centerX + tx + (Math.random() - 0.5) * 6;
-        p.targetY = centerY + ty + (Math.random() - 0.5) * 6;
+        p.targetX = centerX + tx + (Math.random() - 0.5) * 5;
+        p.targetY = centerY + ty + (Math.random() - 0.5) * 5;
       }
       break;
     }
 
     case 'balloon': {
-      // Balloon shape: oval sphere on top, pinch knot at base, hanging wavy ribbon
+      // Balloon volume, knot, and undulating ribbon
       const balloonRadius = minDim * 0.18;
       const knotY = centerY + balloonRadius * 1.35;
       for (let i = 0; i < count; i++) {
         const p = particles[i];
         if (i < count * 0.75) {
-          // Balloon body
           const angle = (i / (count * 0.75)) * Math.PI * 2;
-          const rx = Math.cos(angle) * balloonRadius * (0.85 + Math.random() * 0.18);
-          // Egg/pear shape stretch
+          const rx = Math.cos(angle) * balloonRadius * (0.86 + Math.random() * 0.16);
           const ry = Math.sin(angle) * balloonRadius * 1.25;
           p.targetX = centerX + rx;
           p.targetY = centerY - balloonRadius * 0.2 + ry;
         } else if (i < count * 0.85) {
-          // Knot triangle
-          const kx = (Math.random() - 0.5) * 16;
-          const ky = (Math.random() - 0.5) * 12;
-          p.targetX = centerX + kx;
-          p.targetY = knotY + ky;
+          // Knot
+          p.targetX = centerX + (Math.random() - 0.5) * 14;
+          p.targetY = knotY + (Math.random() - 0.5) * 10;
         } else {
-          // Trailing ribbon string
+          // Ribbon
           const stringIndex = (i - count * 0.85) / (count * 0.15);
           const sy = knotY + stringIndex * (minDim * 0.24);
           const sx = centerX + Math.sin(stringIndex * Math.PI * 3) * 14;
@@ -515,26 +522,26 @@ function assignShapeTargets(
     }
 
     case 'galaxy': {
-      // Golden ratio spiral / galaxy arms
+      // Logarithmic dual-arm spiral galaxy
       for (let i = 0; i < count; i++) {
         const p = particles[i];
         const arm = i % 2;
         const t = (i / count) * 4 * Math.PI;
-        const r = (minDim * 0.04) * Math.sqrt(t * 3.5);
+        const r = minDim * 0.04 * Math.sqrt(t * 3.5);
         const theta = t + arm * Math.PI;
-        p.targetX = centerX + Math.cos(theta) * r + (Math.random() - 0.5) * 12;
-        p.targetY = centerY + Math.sin(theta) * r + (Math.random() - 0.5) * 12;
+        p.targetX = centerX + Math.cos(theta) * r + (Math.random() - 0.5) * 10;
+        p.targetY = centerY + Math.sin(theta) * r + (Math.random() - 0.5) * 10;
       }
       break;
     }
 
     case 'abstract':
     default: {
-      // Natural scattered 3D cloud
+      // Random organic 3D cloud
       for (let i = 0; i < count; i++) {
         const p = particles[i];
-        p.targetX = Math.random() * width;
-        p.targetY = Math.random() * height;
+        p.targetX = p.homeX || Math.random() * width;
+        p.targetY = p.homeY || Math.random() * height;
       }
       break;
     }

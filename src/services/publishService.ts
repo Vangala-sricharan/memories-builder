@@ -250,8 +250,8 @@ export async function publishExperience(
         previewUrl: uploadData.url || photo.previewUrl,
       });
     } catch (err: any) {
-      console.warn(`Failed uploading photo ${i + 1}, using local asset:`, err?.message);
-      uploadedPhotos.push(photo);
+      console.error(`Failed uploading photo ${i + 1}:`, err?.message);
+      throw new Error(`Failed to upload photo ${i + 1} to storage: ${err?.message || 'Storage upload failed'}`);
     }
   }
 
@@ -275,17 +275,18 @@ export async function publishExperience(
         }),
       });
 
-      if (res.ok) {
-        const uploadData = await res.json();
-        uploadedSurprise = {
-          ...draft.surprisePhoto,
-          previewUrl: uploadData.url || draft.surprisePhoto.previewUrl,
-        };
-      } else {
-        uploadedSurprise = draft.surprisePhoto;
+      if (!res.ok) {
+        throw new Error(`Surprise photo upload rejected (status ${res.status})`);
       }
-    } catch (e) {
-      uploadedSurprise = draft.surprisePhoto;
+
+      const uploadData = await res.json();
+      uploadedSurprise = {
+        ...draft.surprisePhoto,
+        previewUrl: uploadData.url || draft.surprisePhoto.previewUrl,
+      };
+    } catch (e: any) {
+      console.error('Failed uploading surprise photo:', e?.message);
+      throw new Error(`Failed to upload surprise photo to storage: ${e?.message || 'Upload failed'}`);
     }
   }
 
@@ -315,20 +316,19 @@ export async function publishExperience(
           }),
         });
 
-        if (res.ok) {
-          const musicData = await res.json();
-          uploadedMusic = {
-            ...draft.music,
-            url: musicData.url || draft.music.url,
-          };
-        } else {
-          uploadedMusic = draft.music;
+        if (!res.ok) {
+          throw new Error(`Music soundtrack upload rejected (status ${res.status})`);
         }
-      } else {
-        uploadedMusic = draft.music;
+
+        const musicData = await res.json();
+        uploadedMusic = {
+          ...draft.music,
+          url: musicData.url || draft.music.url,
+        };
       }
-    } catch (e) {
-      uploadedMusic = draft.music;
+    } catch (e: any) {
+      console.error('Failed uploading music soundtrack:', e?.message);
+      throw new Error(`Failed to upload music soundtrack to storage: ${e?.message || 'Upload failed'}`);
     }
   }
 

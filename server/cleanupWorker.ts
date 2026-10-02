@@ -67,13 +67,22 @@ export async function runCleanupJob(): Promise<{
  * Initializes background cleanup schedule (runs every 5 minutes).
  */
 export function startCleanupScheduler(intervalMs = 300000) {
+  // Skip background persistent timers on Vercel serverless (uses Vercel Cron instead)
+  if (process.env.VERCEL) {
+    return null;
+  }
+
   // Run once shortly after startup (after 10s)
-  setTimeout(() => {
+  const timer = setTimeout(() => {
     runCleanupJob().catch((err) => console.error('Initial cleanup run error:', err));
   }, 10000);
+  if (timer.unref) timer.unref();
 
   // Then recurring
-  return setInterval(() => {
+  const interval = setInterval(() => {
     runCleanupJob().catch((err) => console.error('Scheduled cleanup error:', err));
   }, intervalMs);
+  if (interval.unref) interval.unref();
+
+  return interval;
 }
