@@ -1,0 +1,60 @@
+import { BirthdayExperienceData } from '../types';
+
+export const sampleBirthdayData: BirthdayExperienceData = {
+  recipientName: 'Alex Vance',
+  milestoneAge: 28,
+  date: 'October 12, 2026',
+  tagline: 'Twenty-Eight Orbits Around The Sun',
+  openingQuote: '“Some people make the world brighter simply by being in it. Here is a film of your light.”',
+  personalNarrative: 'From dawn hikes along the rugged coastal ridges of Big Sur to late-night rooftop conversations overlooking the skyline, every shared moment has been a testament to your relentless kindness, curiosity, and steady grace.',
+  soundtrack: {
+    fileName: 'Midnight_Echoes_Acoustic.mp3',
+    duration: '04:18',
+    artistOrNote: 'Ludovico Einaudi - Mastered for Alex',
+  },
+  memories: [
+    {
+      id: 'mem-1',
+      caption: 'Sunrise over Mount Rainier · 14,411 ft',
+      year: '2023',
+      location: 'Washington Wilderness',
+      aspect: '16:9',
+      accentColor: '#E50914',
+    },
+    {
+      id: 'mem-2',
+      caption: 'The spontaneous detour down Highway 1',
+      year: '2024',
+      location: 'Big Sur Coast, CA',
+      aspect: '4:3',
+      accentColor: '#FFFFFF',
+    },
+    {
+      id: 'mem-3',
+      caption: 'Night market explorations under paper lanterns',
+      year: '2025',
+      location: 'Kyoto, Japan',
+      aspect: '1:1',
+      accentColor: '#8B0000',
+    },
+    {
+      id: 'mem-4',
+      caption: 'Surprise celebration dinner surrounded by lifelong friends',
+      year: '2026',
+      location: 'Brooklyn, NY',
+      aspect: '16:9',
+      accentColor: '#E50914',
+    },
+  ],
+  heroMemoryId: 'mem-1',
+  innerCircleMemoryIds: ['mem-1', 'mem-2', 'mem-4'],
+  surpriseMemory: {
+    id: 'mem-surprise',
+    caption: 'The secret gathering when everyone flew in unnoticed',
+    year: '2026',
+    location: 'Secret Rooftop, Brooklyn',
+    aspect: '16:9',
+    accentColor: '#E50914',
+  },
+  finalMessage: 'May the year ahead bring the same unyielding joy and wonder that you bring into the lives of everyone lucky enough to know you. Happy 28th Birthday, Alex.',
+};

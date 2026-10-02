@@ -1,0 +1,6 @@
+{
+  "name": "BIRTHDAY - Cinematic Birthday Experience Builder",
+  "description": "Turn memories into a cinematic birthday experience. Create personalized 24-hour birthday websites with photos, music, and AI storytelling.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
