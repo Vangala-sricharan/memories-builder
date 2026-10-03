@@ -13,6 +13,7 @@ import {
 } from './supabaseClient';
 import { 
   uploadMediaToSupabaseStorage, 
+  createSignedMediaUploadUrl,
   getMediaFromSupabaseStorage,
   createSignedMediaUrl,
   deleteExperienceMediaFromSupabaseStorage 
@@ -112,7 +113,7 @@ const handleGlobalCounter = async (req: express.Request, res: express.Response) 
     res.json({ success: true, count });
   } catch (err: any) {
     console.error('Error fetching global counter:', err?.message);
-    res.status(500).json({ success: false, error: 'Failed to retrieve counter', count: 12482 });
+    res.status(500).json({ success: false, error: 'Failed to retrieve counter', count: 0 });
   }
 };
 
@@ -197,6 +198,67 @@ apiRouter.post('/upload-media', async (req, res) => {
     res.status(500).json({ success: false, error: 'Failed to process media upload.' });
   }
 });
+
+/**
+ * SECURE DIRECT-TO-STORAGE SIGNED UPLOAD URL ENDPOINT
+ * POST /create-upload-url and POST /signed-upload-url
+ * Provides a cryptographically signed upload URL for direct browser-to-Supabase upload.
+ * Avoids Vercel's 4.5MB Serverless Function payload limit (HTTP 413 FUNCTION_PAYLOAD_TOO_LARGE)
+ * while keeping the 'birthday-media' bucket strictly private and never exposing SUPABASE_SECRET_KEY.
+ */
+const handleCreateUploadUrl = async (req: express.Request, res: express.Response) => {
+  const clientIp = getClientIp(req);
+  const rate = checkRateLimit(clientIp, 'upload', 60, 600000); // 60 per 10 mins
+  if (!rate.allowed) {
+    res.status(429).json({ 
+      success: false, 
+      error: 'Too many upload URL requests right now. Please try again shortly.' 
+    });
+    return;
+  }
+
+  try {
+    const { experienceId, type = 'music', mimeType = 'audio/mpeg' } = req.body || {};
+
+    if (!experienceId || typeof experienceId !== 'string') {
+      res.status(400).json({ success: false, error: 'Invalid experience identifier.' });
+      return;
+    }
+
+    if (type !== 'music' && type !== 'image') {
+      res.status(400).json({ success: false, error: 'Invalid media type. Must be music or image.' });
+      return;
+    }
+
+    if (type === 'music') {
+      const allowedMusicMimes = ['audio/mpeg', 'audio/mp3'];
+      if (mimeType && !allowedMusicMimes.includes(mimeType.toLowerCase())) {
+        res.status(400).json({ success: false, error: 'Unsupported audio format. MP3 only.' });
+        return;
+      }
+    }
+
+    const { path: storagePath, uploadUrl, token, mediaUrl } = await createSignedMediaUploadUrl(
+      experienceId,
+      type,
+      mimeType
+    );
+
+    res.json({
+      success: true,
+      uploadUrl,
+      path: storagePath,
+      token,
+      mediaUrl,
+    });
+  } catch (err: any) {
+    console.error('Error generating signed upload URL:', err?.message);
+    res.status(500).json({ success: false, error: 'Failed to initialize secure upload.' });
+  }
+};
+
+apiRouter.post('/create-upload-url', handleCreateUploadUrl);
+apiRouter.post('/signed-upload-url', handleCreateUploadUrl);
 
 /**
  * SERVER-CONTROLLED MEDIA ACCESS ENDPOINT
@@ -636,10 +698,16 @@ Tone: Warm, luxurious, profoundly emotional, heartfelt, authentic. Avoid generic
       },
     });
 
-    const parsed = JSON.parse(response.text?.trim() || '{}');
+    let cleanJson = (response.text || '').trim();
+    if (cleanJson.startsWith('```json')) {
+      cleanJson = cleanJson.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+    } else if (cleanJson.startsWith('```')) {
+      cleanJson = cleanJson.replace(/^```\s*/, '').replace(/\s*```$/, '');
+    }
+    const parsed = JSON.parse(cleanJson || '{}');
     res.json({ success: true, content: parsed });
   } catch (error: any) {
-    console.error('Error generating AI birthday content (falling back):', error?.message);
+    console.error('Error generating AI birthday content (falling back):', error?.status || error?.code || '', error?.message);
     // Graceful degradation: return safe fallback rather than breaking creator workflow with 500
     res.json({ 
       success: true, 

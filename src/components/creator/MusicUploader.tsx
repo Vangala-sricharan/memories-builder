@@ -201,10 +201,6 @@ export const MusicUploader: React.FC<MusicUploaderProps> = ({
   };
 
   const handleContinue = () => {
-    if (!music) {
-      setErrorMessage('Please upload an MP3 file to continue.');
-      return;
-    }
     setErrorMessage(null);
     onNext();
   };

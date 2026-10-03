@@ -39,10 +39,10 @@ export interface ExperienceDbRecord {
 
 // In-memory cache & fallback database for local preview/development and zero-latency consistency
 const localDatabase = new Map<string, ExperienceDbRecord>();
-let localLifetimeCounter = 12482;
+let localLifetimeCounter = 0;
 
 /**
- * Retrieves the permanent global experience counter.
+ * Retrieves the permanent global experience counter from the single row where id=true.
  */
 export async function getGlobalCounter(): Promise<number> {
   if (isSupabaseConfigured && supabase) {
@@ -50,11 +50,13 @@ export async function getGlobalCounter(): Promise<number> {
       const { data, error } = await supabase
         .from('global_stats')
         .select('experience_count')
-        .eq('id', 'lifetime')
+        .eq('id', true)
         .single();
 
       if (!error && data) {
-        return Number(data.experience_count);
+        const count = Number(data.experience_count);
+        localLifetimeCounter = Math.max(localLifetimeCounter, count);
+        return count;
       }
     } catch (err: any) {
       console.warn('Could not read global_stats from Supabase, falling back to local counter:', err?.message);
@@ -66,30 +68,32 @@ export async function getGlobalCounter(): Promise<number> {
 
 /**
  * Atomically increments the permanent global counter strictly on successful publication.
- * Race-condition safe.
+ * Race-condition safe. Uses the existing increment_experience_count() PostgreSQL function.
  */
 export async function incrementGlobalCounter(): Promise<number> {
   if (isSupabaseConfigured && supabase) {
     try {
-      // Call atomic PostgreSQL function (supports increment_experience_count or increment_global_counter)
-      let { data, error } = await supabase.rpc('increment_experience_count');
-      if (error) {
-        const fallback = await supabase.rpc('increment_global_counter');
-        data = fallback.data;
-        error = fallback.error;
+      // Call atomic PostgreSQL function increment_experience_count()
+      const { data, error } = await supabase.rpc('increment_experience_count');
+
+      if (!error && data !== null && data !== undefined) {
+        const count = Number(data);
+        localLifetimeCounter = Math.max(localLifetimeCounter, count);
+        return count;
       }
 
-      if (!error && data !== null) {
-        return Number(data);
-      }
-
-      // Fallback update if RPC not present yet
+      // Fallback update if RPC not present: update the single row where id=true
       const current = await getGlobalCounter();
       const next = current + 1;
-      await supabase
+      const { error: updateError } = await supabase
         .from('global_stats')
-        .upsert({ id: 'lifetime', experience_count: next, updated_at: new Date().toISOString() });
-      return next;
+        .update({ experience_count: next, updated_at: new Date().toISOString() })
+        .eq('id', true);
+
+      if (!updateError) {
+        localLifetimeCounter = Math.max(localLifetimeCounter, next);
+        return next;
+      }
     } catch (err: any) {
       console.error('Error incrementing counter in Supabase:', err?.message);
     }

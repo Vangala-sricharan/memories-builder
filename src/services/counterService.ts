@@ -3,7 +3,7 @@
  * In Stage 5, this retrieves the real permanent count from the Supabase backend.
  */
 
-const BASE_COUNTER = 12482;
+const BASE_COUNTER = 0;
 let cachedCounter = BASE_COUNTER;
 
 /**

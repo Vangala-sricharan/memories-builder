@@ -90,6 +90,48 @@ export async function uploadMediaToSupabaseStorage(
 }
 
 /**
+ * Creates a scoped signed upload URL for direct client-to-Supabase upload.
+ * The browser uploads directly to private Supabase Storage without passing
+ * through Vercel serverless request limits (avoiding HTTP 413).
+ */
+export async function createSignedMediaUploadUrl(
+  experienceId: string,
+  type: 'image' | 'music',
+  contentType: string = 'audio/mpeg'
+): Promise<{ path: string; uploadUrl: string; token: string; mediaUrl: string }> {
+  const randomObjectId = crypto.randomBytes(8).toString('hex');
+  const ext = type === 'music' ? 'mp3' : 'webp';
+  const subFolder = type === 'music' ? 'music' : 'photos';
+  const path = `experiences/${experienceId}/${subFolder}/${randomObjectId}.${ext}`;
+  const mediaUrl = `/api/media/${experienceId}/${subFolder}/${randomObjectId}.${ext}`;
+
+  if (isSupabaseConfigured && supabase) {
+    const { data, error } = await supabase.storage
+      .from(BUCKET_NAME)
+      .createSignedUploadUrl(path);
+
+    if (error || !data) {
+      throw new Error(`Failed to create signed upload URL: ${error?.message || 'Unknown error'}`);
+    }
+
+    return {
+      path,
+      uploadUrl: data.signedUrl,
+      token: data.token,
+      mediaUrl,
+    };
+  }
+
+  // Fallback for offline/mock dev
+  return {
+    path,
+    uploadUrl: `/api/upload-media-direct?path=${encodeURIComponent(path)}`,
+    token: 'local-token',
+    mediaUrl,
+  };
+}
+
+/**
  * Generates a short-lived signed URL for a private Supabase Storage object.
  * Capped to lifetime window, never permanent.
  */

@@ -18,13 +18,15 @@ var supabase = isSupabaseConfigured ? createClient(SUPABASE_URL, SUPABASE_SECRET
   }
 }) : null;
 var localDatabase = /* @__PURE__ */ new Map();
-var localLifetimeCounter = 12482;
+var localLifetimeCounter = 0;
 async function getGlobalCounter() {
   if (isSupabaseConfigured && supabase) {
     try {
-      const { data, error } = await supabase.from("global_stats").select("experience_count").eq("id", "lifetime").single();
+      const { data, error } = await supabase.from("global_stats").select("experience_count").eq("id", true).single();
       if (!error && data) {
-        return Number(data.experience_count);
+        const count = Number(data.experience_count);
+        localLifetimeCounter = Math.max(localLifetimeCounter, count);
+        return count;
       }
     } catch (err) {
       console.warn("Could not read global_stats from Supabase, falling back to local counter:", err?.message);
@@ -35,19 +37,19 @@ async function getGlobalCounter() {
 async function incrementGlobalCounter() {
   if (isSupabaseConfigured && supabase) {
     try {
-      let { data, error } = await supabase.rpc("increment_experience_count");
-      if (error) {
-        const fallback = await supabase.rpc("increment_global_counter");
-        data = fallback.data;
-        error = fallback.error;
-      }
-      if (!error && data !== null) {
-        return Number(data);
+      const { data, error } = await supabase.rpc("increment_experience_count");
+      if (!error && data !== null && data !== void 0) {
+        const count = Number(data);
+        localLifetimeCounter = Math.max(localLifetimeCounter, count);
+        return count;
       }
       const current = await getGlobalCounter();
       const next = current + 1;
-      await supabase.from("global_stats").upsert({ id: "lifetime", experience_count: next, updated_at: (/* @__PURE__ */ new Date()).toISOString() });
-      return next;
+      const { error: updateError } = await supabase.from("global_stats").update({ experience_count: next, updated_at: (/* @__PURE__ */ new Date()).toISOString() }).eq("id", true);
+      if (!updateError) {
+        localLifetimeCounter = Math.max(localLifetimeCounter, next);
+        return next;
+      }
     } catch (err) {
       console.error("Error incrementing counter in Supabase:", err?.message);
     }
@@ -257,6 +259,31 @@ async function uploadMediaToSupabaseStorage(experienceId, type, buffer, contentT
     path,
     url: mediaUrl,
     sizeBytes: buffer.length
+  };
+}
+async function createSignedMediaUploadUrl(experienceId, type, contentType = "audio/mpeg") {
+  const randomObjectId = crypto.randomBytes(8).toString("hex");
+  const ext = type === "music" ? "mp3" : "webp";
+  const subFolder = type === "music" ? "music" : "photos";
+  const path = `experiences/${experienceId}/${subFolder}/${randomObjectId}.${ext}`;
+  const mediaUrl = `/api/media/${experienceId}/${subFolder}/${randomObjectId}.${ext}`;
+  if (isSupabaseConfigured && supabase) {
+    const { data, error } = await supabase.storage.from(BUCKET_NAME).createSignedUploadUrl(path);
+    if (error || !data) {
+      throw new Error(`Failed to create signed upload URL: ${error?.message || "Unknown error"}`);
+    }
+    return {
+      path,
+      uploadUrl: data.signedUrl,
+      token: data.token,
+      mediaUrl
+    };
+  }
+  return {
+    path,
+    uploadUrl: `/api/upload-media-direct?path=${encodeURIComponent(path)}`,
+    token: "local-token",
+    mediaUrl
   };
 }
 async function createSignedMediaUrl(path, expiresInSeconds = 3600) {
@@ -491,7 +518,7 @@ var handleGlobalCounter = async (req, res) => {
     res.json({ success: true, count });
   } catch (err) {
     console.error("Error fetching global counter:", err?.message);
-    res.status(500).json({ success: false, error: "Failed to retrieve counter", count: 12482 });
+    res.status(500).json({ success: false, error: "Failed to retrieve counter", count: 0 });
   }
 };
 apiRouter.get("/global-counter", handleGlobalCounter);
@@ -554,6 +581,52 @@ apiRouter.post("/upload-media", async (req, res) => {
     res.status(500).json({ success: false, error: "Failed to process media upload." });
   }
 });
+var handleCreateUploadUrl = async (req, res) => {
+  const clientIp = getClientIp(req);
+  const rate = checkRateLimit(clientIp, "upload", 60, 6e5);
+  if (!rate.allowed) {
+    res.status(429).json({
+      success: false,
+      error: "Too many upload URL requests right now. Please try again shortly."
+    });
+    return;
+  }
+  try {
+    const { experienceId, type = "music", mimeType = "audio/mpeg" } = req.body || {};
+    if (!experienceId || typeof experienceId !== "string") {
+      res.status(400).json({ success: false, error: "Invalid experience identifier." });
+      return;
+    }
+    if (type !== "music" && type !== "image") {
+      res.status(400).json({ success: false, error: "Invalid media type. Must be music or image." });
+      return;
+    }
+    if (type === "music") {
+      const allowedMusicMimes = ["audio/mpeg", "audio/mp3"];
+      if (mimeType && !allowedMusicMimes.includes(mimeType.toLowerCase())) {
+        res.status(400).json({ success: false, error: "Unsupported audio format. MP3 only." });
+        return;
+      }
+    }
+    const { path: storagePath, uploadUrl, token, mediaUrl } = await createSignedMediaUploadUrl(
+      experienceId,
+      type,
+      mimeType
+    );
+    res.json({
+      success: true,
+      uploadUrl,
+      path: storagePath,
+      token,
+      mediaUrl
+    });
+  } catch (err) {
+    console.error("Error generating signed upload URL:", err?.message);
+    res.status(500).json({ success: false, error: "Failed to initialize secure upload." });
+  }
+};
+apiRouter.post("/create-upload-url", handleCreateUploadUrl);
+apiRouter.post("/signed-upload-url", handleCreateUploadUrl);
 apiRouter.get("/media/:experienceId/:type/:filename", async (req, res) => {
   const { experienceId, type, filename } = req.params;
   try {
@@ -895,10 +968,16 @@ Tone: Warm, luxurious, profoundly emotional, heartfelt, authentic. Avoid generic
         }
       }
     });
-    const parsed = JSON.parse(response.text?.trim() || "{}");
+    let cleanJson = (response.text || "").trim();
+    if (cleanJson.startsWith("```json")) {
+      cleanJson = cleanJson.replace(/^```json\s*/, "").replace(/\s*```$/, "");
+    } else if (cleanJson.startsWith("```")) {
+      cleanJson = cleanJson.replace(/^```\s*/, "").replace(/\s*```$/, "");
+    }
+    const parsed = JSON.parse(cleanJson || "{}");
     res.json({ success: true, content: parsed });
   } catch (error) {
-    console.error("Error generating AI birthday content (falling back):", error?.message);
+    console.error("Error generating AI birthday content (falling back):", error?.status || error?.code || "", error?.message);
     res.json({
       success: true,
       content: getCinematicFallback(req.body),

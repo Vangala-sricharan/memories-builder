@@ -91,7 +91,7 @@ export const BirthdayCreator: React.FC<BirthdayCreatorProps> = ({
       case 'curate':
         return draft.photos.length >= 3;
       case 'music':
-        return !!draft.music;
+        return true; // Music is optional for testing
       case 'customize':
         return isStepCompleted('details') && isStepCompleted('photos');
       case 'review':

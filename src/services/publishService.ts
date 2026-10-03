@@ -290,40 +290,56 @@ export async function publishExperience(
     }
   }
 
-  // 3. Upload optional MP3 to private Supabase Storage
+  // 3. Upload optional MP3 directly to private Supabase Storage via signed upload URL
   let uploadedMusic: UploadedMusic | null = null;
   if (draft.music) {
     try {
-      let musicBase64 = '';
-      if (draft.music.file) {
-        const data = await fileOrUrlToBase64(draft.music.file);
-        musicBase64 = data.dataBase64;
-      } else if (draft.music.url && draft.music.url.startsWith('blob:')) {
-        const data = await fileOrUrlToBase64(undefined, draft.music.url);
-        musicBase64 = data.dataBase64;
+      let fileBlob: Blob | File | null = draft.music.file || null;
+      if (!fileBlob && draft.music.url && draft.music.url.startsWith('blob:')) {
+        const blobRes = await fetch(draft.music.url);
+        fileBlob = await blobRes.blob();
       }
 
-      if (musicBase64) {
-        const res = await fetch('/api/upload-media', {
+      if (fileBlob) {
+        // Step A: Request signed upload URL from backend (sends ONLY lightweight JSON metadata, ~150 bytes)
+        // Avoids Vercel's 4.5MB Serverless Function payload limit (HTTP 413)
+        const signRes = await fetch('/api/create-upload-url', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             experienceId,
             type: 'music',
-            dataBase64: musicBase64,
             mimeType: 'audio/mpeg',
             fileName: draft.music.fileName || 'soundtrack.mp3',
           }),
         });
 
-        if (!res.ok) {
-          throw new Error(`Music soundtrack upload rejected (status ${res.status})`);
+        if (!signRes.ok) {
+          throw new Error(`Failed to initialize secure music upload (status ${signRes.status})`);
         }
 
-        const musicData = await res.json();
+        const signData = await signRes.json();
+        if (!signData.success || !signData.uploadUrl) {
+          throw new Error(signData.error || 'Invalid signed upload URL response');
+        }
+
+        // Step B: Upload the raw MP3 binary directly from browser to private Supabase Storage
+        // The binary NEVER passes through the Vercel Serverless Function request body!
+        const uploadRes = await fetch(signData.uploadUrl, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'audio/mpeg',
+          },
+          body: fileBlob,
+        });
+
+        if (!uploadRes.ok) {
+          throw new Error(`Direct music upload to storage failed (status ${uploadRes.status})`);
+        }
+
         uploadedMusic = {
           ...draft.music,
-          url: musicData.url || draft.music.url,
+          url: signData.mediaUrl,
         };
       }
     } catch (e: any) {
