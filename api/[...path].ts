@@ -1,12 +1,4 @@
-import app from '../server/app';
-
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '60mb',
-    },
-  },
-};
+import app from './_lib/app';
 
 export default function handler(req: any, res: any) {
   return app(req, res);
