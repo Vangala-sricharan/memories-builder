@@ -103,6 +103,46 @@ apiRouter.get(['/diagnostic', '/health'], (req, res) => {
 });
 
 /**
+ * PUBLIC SEARCH ENGINE CRAWLER DIRECTIVES
+ * GET /robots.txt
+ */
+apiRouter.get('/robots.txt', (req, res) => {
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.send(`# Robots.txt for Memories Builder
+# Allow legitimate search crawlers to crawl the public homepage
+
+User-agent: *
+Allow: /$
+
+# Disallow private and transient routes
+Disallow: /api/
+Disallow: /b/
+Disallow: /create/
+Disallow: /studio/
+Disallow: /preview/
+
+Sitemap: https://memoriesbuilder.com/sitemap.xml
+`);
+});
+
+/**
+ * PUBLIC SITEMAP
+ * GET /sitemap.xml
+ */
+apiRouter.get('/sitemap.xml', (req, res) => {
+  res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+  res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://memoriesbuilder.com/</loc>
+    <lastmod>2026-10-03</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>`);
+});
+
+/**
  * LIFETIME GLOBAL COUNTER ENDPOINT
  * GET /global-counter and POST /global-counter
  * Supports both GET and POST requests gracefully.

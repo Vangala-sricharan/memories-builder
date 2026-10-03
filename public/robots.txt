@@ -1,0 +1,14 @@
+# Robots.txt for Memories Builder
+# Allow legitimate search crawlers to crawl the public homepage
+
+User-agent: *
+Allow: /$
+
+# Disallow private and transient routes
+Disallow: /api/
+Disallow: /b/
+Disallow: /create/
+Disallow: /studio/
+Disallow: /preview/
+
+Sitemap: https://memoriesbuilder.com/sitemap.xml

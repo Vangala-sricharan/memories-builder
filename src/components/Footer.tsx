@@ -8,10 +8,10 @@ export const Footer: React.FC = () => {
         {/* Brand & Mission */}
         <div className="flex flex-col items-center md:items-start gap-2">
           <div className="font-cinzel text-xl font-bold tracking-[0.25em] text-white">
-            BIRTHDAY
+            MEMORIES BUILDER
           </div>
           <p className="text-neutral-400 max-w-sm text-center md:text-left text-xs leading-relaxed">
-            The premium cinematic birthday experience builder. Turning lifelong memories into private 24-hour motion pictures.
+            The cinematic birthday website builder & anniversary website builder. Turning cherished photos into personalized birthday memory websites and digital birthday gifts.
           </p>
         </div>
 

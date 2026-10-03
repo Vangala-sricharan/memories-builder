@@ -53,7 +53,7 @@ export const FeatureSection: React.FC = () => {
             CINEMATIC BY DESIGN
           </h2>
           <p className="text-neutral-400 text-sm sm:text-base leading-relaxed [text-wrap:balance]">
-            Engineered from the ground up to replace generic paper birthday cards and bland social messages with an unforgettable, theater-quality digital gift.
+            Engineered from the ground up to replace generic paper birthday cards and bland social messages with an unforgettable, theater-quality digital birthday gift. Build a custom birthday website and online birthday surprise website that celebrates your shared milestones.
           </p>
         </div>
 

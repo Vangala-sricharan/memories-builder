@@ -48,24 +48,23 @@ export const Hero: React.FC<HeroProps> = ({
         <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-[#141414] border border-[#292929] mb-8 animate-fade-in">
           <span className="w-1.5 h-1.5 rounded-full bg-[#E50914] animate-ping" />
           <span className="text-[11px] md:text-xs font-semibold tracking-[0.2em] uppercase text-neutral-300">
-            BIRTHDAY EXPERIENCE BUILDER
+            CINEMATIC BIRTHDAY & ANNIVERSARY WEBSITE BUILDER
           </span>
         </div>
 
         {/* Main Cinematic Headline */}
         <h1 className="font-cinzel text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-white leading-[1.08] mb-6 max-w-3xl [text-wrap:balance]">
-          TURN MEMORIES INTO A CINEMATIC{' '}
+          THE CINEMATIC{' '}
           <span className="relative text-[#E50914] inline-block">
-            BIRTHDAY
+            BIRTHDAY WEBSITE BUILDER
             <span className="absolute left-0 -bottom-1 w-full h-[2px] bg-gradient-to-r from-transparent via-[#E50914] to-transparent opacity-60" />
           </span>{' '}
-          EXPERIENCE
+          FOR TIMELESS MOMENTS
         </h1>
 
         {/* Supporting text */}
         <p className="text-base sm:text-lg md:text-xl text-[#D6D6D6] font-normal leading-relaxed max-w-2xl mb-10 [text-wrap:balance]">
-          Create a beautiful personalized birthday website from photos, stories and music.
-          An immersive, ephemeral digital gift designed to feel like a private film premiere.
+          Create personalized birthday websites and anniversary websites with photos, stories, and music. Turn your birthday memories into an immersive, cinematic birthday experience that lives for 24 hours.
         </p>
 
         {/* Call to action buttons */}
