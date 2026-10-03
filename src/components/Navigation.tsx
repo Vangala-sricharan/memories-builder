@@ -28,7 +28,7 @@ export const Navigation: React.FC<NavigationProps> = ({
           href="#"
           className="font-cinzel text-xl md:text-2xl font-bold tracking-[0.25em] text-white hover:text-white/90 transition-colors uppercase select-none"
         >
-          BIRTHDAY
+          MEMORIES BUILDER
         </a>
 
         {/* Zone 2: 4-6 clean text navigation links */}

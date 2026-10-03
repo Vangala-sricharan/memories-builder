@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UploadedPhoto, UploadedMusic } from '../../types';
+import { AutoFitImage } from '../common/AutoFitImage';
 import { 
   Sparkles, 
   Heart, 
@@ -147,10 +148,11 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
             <div className="relative rounded-2xl overflow-hidden border border-[#2B2B2B] bg-[#0A0A0A] shadow-2xl group">
               {/* Image Frame */}
               <div className="relative aspect-[16/9] w-full max-h-[580px] bg-black flex items-center justify-center overflow-hidden">
-                <img
+                <AutoFitImage
                   src={heroPhoto.previewUrl}
                   alt={heroPhoto.caption}
-                  className="w-full h-full object-contain sm:object-cover group-hover:scale-[1.02] transition-transform duration-700"
+                  enableBackdropGlow={true}
+                  className="group-hover:scale-[1.02] transition-transform duration-700"
                 />
 
                 {/* Ambient Scrims */}
@@ -209,10 +211,10 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
                   className="bg-[#121212] border border-[#262626] hover:border-[#E50914] rounded-2xl p-4 transition-all duration-300 group hover:-translate-y-1 shadow-lg"
                 >
                   <div className="aspect-square rounded-xl overflow-hidden bg-black mb-3 relative">
-                    <img
+                    <AutoFitImage
                       src={photo.previewUrl}
                       alt={photo.caption}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      className="group-hover:scale-105 transition-transform duration-500"
                     />
                     <div className="absolute top-2 left-2 bg-black/80 text-[10px] font-mono px-2 py-0.5 rounded text-white border border-white/15">
                       CIRCLE #{idx + 1}
@@ -270,10 +272,10 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
                 }`}
               >
                 <div className="aspect-[16/10] rounded-xl overflow-hidden bg-black mb-4 relative">
-                  <img
+                  <AutoFitImage
                     src={photo.previewUrl}
                     alt={photo.caption}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    className="group-hover:scale-105 transition-transform duration-500"
                   />
                   <div className="absolute top-3 left-3 bg-black/80 px-2.5 py-1 rounded-md text-[11px] font-mono text-white border border-white/20">
                     MEMORY #{String(index + 1).padStart(2, '0')}
@@ -354,10 +356,9 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
                     }}
                   >
                     <div className="w-full h-44 sm:h-52 rounded-xl overflow-hidden bg-black relative">
-                      <img
+                      <AutoFitImage
                         src={photo.previewUrl}
                         alt={photo.caption}
-                        className="w-full h-full object-cover"
                       />
                       <div className="absolute top-1.5 left-1.5 bg-black/85 text-[9px] font-mono px-1.5 py-0.5 rounded text-white border border-white/10">
                         VAULT #{idx + 1}
@@ -416,10 +417,10 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
                 ) : (
                   <div className="animate-fade-in pt-4 max-w-2xl mx-auto space-y-4">
                     <div className="relative aspect-[16/9] w-full rounded-2xl overflow-hidden border border-[#E50914] shadow-2xl bg-black">
-                      <img
+                      <AutoFitImage
                         src={surprisePhoto.previewUrl}
                         alt={surprisePhoto.caption}
-                        className="w-full h-full object-cover"
+                        enableBackdropGlow={true}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
                       <div className="absolute bottom-4 left-4 right-4 text-left">

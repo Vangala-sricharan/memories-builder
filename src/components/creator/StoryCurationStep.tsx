@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { UploadedPhoto } from '../../types';
+import { AutoFitImage } from '../common/AutoFitImage';
 import { 
   Star, 
   Heart, 
@@ -114,7 +115,7 @@ export const StoryCurationStep: React.FC<StoryCurationStepProps> = ({
                     : 'border-[#262626] opacity-70 hover:opacity-100 hover:border-neutral-500'
                 }`}
               >
-                <img src={ph.previewUrl} alt={ph.caption} className="w-full h-full object-cover" />
+                <AutoFitImage src={ph.previewUrl} alt={ph.caption} />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
 
                 <div className="absolute top-1.5 left-1.5 text-[9px] font-mono px-1 rounded bg-black/80 text-white">
@@ -165,7 +166,7 @@ export const StoryCurationStep: React.FC<StoryCurationStepProps> = ({
                     : 'border-[#262626] opacity-60 hover:opacity-100 hover:border-neutral-500'
                 }`}
               >
-                <img src={ph.previewUrl} alt={ph.caption} className="w-full h-full object-cover" />
+                <AutoFitImage src={ph.previewUrl} alt={ph.caption} />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
 
                 <div className="absolute top-1.5 left-1.5 text-[9px] font-mono px-1 rounded bg-black/80 text-white">
@@ -237,10 +238,9 @@ export const StoryCurationStep: React.FC<StoryCurationStepProps> = ({
           <div className="bg-[#140808] border border-[#3E1414] rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="w-20 h-14 rounded-lg overflow-hidden bg-black shrink-0 border border-white/10">
-                <img
+                <AutoFitImage
                   src={surprisePhoto.previewUrl}
                   alt={surprisePhoto.caption}
-                  className="w-full h-full object-cover"
                 />
               </div>
               <div>

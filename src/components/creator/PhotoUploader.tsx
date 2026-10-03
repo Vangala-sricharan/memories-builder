@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { UploadedPhoto } from '../../types';
+import { AutoFitImage } from '../common/AutoFitImage';
 import { optimizeImageBatch, formatBytes, OptimizationStats } from '../../utils/imageOptimizer';
 import { 
   UploadCloud, 
@@ -380,10 +381,10 @@ export const PhotoUploader: React.FC<PhotoUploaderProps> = ({
               >
                 {/* Photo Thumbnail */}
                 <div className="relative aspect-[4/3] bg-black overflow-hidden flex items-center justify-center">
-                  <img
+                  <AutoFitImage
                     src={photo.previewUrl}
                     alt={photo.caption}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    className="group-hover:scale-105 transition-transform duration-500"
                   />
 
                   {/* Gradient Scrim */}

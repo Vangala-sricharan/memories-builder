@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { BirthdayExperienceDraft, UploadedPhoto } from '../../types';
+import { AutoFitImage } from '../common/AutoFitImage';
 import { 
   CheckCircle2, 
   AlertCircle, 
@@ -145,7 +146,7 @@ export const FinalReviewScreen: React.FC<FinalReviewScreenProps> = ({
           <div className="p-4 rounded-2xl bg-[#141414] border border-[#262626] flex items-start gap-3.5">
             <div className="w-8 h-8 rounded-xl bg-[#1A1A1A] flex items-center justify-center shrink-0 border border-white/10 overflow-hidden">
               {heroPhoto ? (
-                <img src={heroPhoto.previewUrl} alt="Hero" className="w-full h-full object-cover" />
+                <AutoFitImage src={heroPhoto.previewUrl} alt="Hero" />
               ) : (
                 <Star className="w-4 h-4 text-[#E50914]" />
               )}

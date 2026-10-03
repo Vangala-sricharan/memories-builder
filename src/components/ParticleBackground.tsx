@@ -108,64 +108,64 @@ export const ParticleBackground: React.FC<ParticleBackgroundProps> = ({
     };
 
     // Adaptive particle count based on viewport capability:
-    // Mobile (<768px): 85 | Tablet (768-1024px): 140 | Desktop (>1024px): 220
+    // Mobile (<768px): 180 | Tablet (768-1024px): 340 | Desktop (>1024px): 560
     const screenWidth = window.innerWidth;
-    const particleCount = screenWidth < 768 ? 85 : screenWidth < 1024 ? 140 : 220;
+    const particleCount = screenWidth < 768 ? 180 : screenWidth < 1024 ? 340 : 560;
 
     // Generate balanced layered particle field with 3 distinct depth tiers
     const newParticles: Particle[] = [];
     for (let i = 0; i < particleCount; i++) {
       // Stratified depth distribution:
-      // ~45% background (deep stars/dust), ~40% midground (ambient field), ~15% foreground (cinematic sparks)
+      // ~38% background (deep stars/dust), ~44% midground (ambient field), ~18% foreground (cinematic sparks)
       const depthRoll = Math.random();
       let z: number;
       let tier: 'background' | 'midground' | 'foreground';
 
-      if (depthRoll < 0.45) {
+      if (depthRoll < 0.38) {
         tier = 'background';
-        z = 0.35 + Math.random() * 0.55; // 0.35 - 0.90
-      } else if (depthRoll < 0.85) {
+        z = 0.40 + Math.random() * 0.55; // 0.40 - 0.95
+      } else if (depthRoll < 0.82) {
         tier = 'midground';
-        z = 0.91 + Math.random() * 0.89; // 0.91 - 1.80
+        z = 0.96 + Math.random() * 0.89; // 0.96 - 1.85
       } else {
         tier = 'foreground';
-        z = 1.81 + Math.random() * 0.99; // 1.81 - 2.80
+        z = 1.86 + Math.random() * 1.14; // 1.86 - 3.00
       }
 
       // Color classification (Red accent highlights, warm cinematic white, graphite depth)
       const colorRoll = Math.random();
       let colorType: 'white' | 'red' | 'gray' = 'white';
       let colorRgb = '255, 255, 255';
-      let baseAlpha = 0.35;
+      let baseAlpha = 0.50;
 
-      if (colorRoll < 0.22) {
-        // Red cinematic ember highlight
+      if (colorRoll < 0.30) {
+        // Red cinematic ember highlight (prominent, warm, glowing)
         colorType = 'red';
         colorRgb = '229, 9, 20';
-        baseAlpha = tier === 'foreground' ? 0.75 : tier === 'midground' ? 0.55 : 0.35;
-      } else if (colorRoll < 0.50) {
-        // Soft graphite gray (enhances spatial depth without visual noise)
+        baseAlpha = tier === 'foreground' ? 0.92 : tier === 'midground' ? 0.72 : 0.50;
+      } else if (colorRoll < 0.54) {
+        // Soft graphite / warm silver-gray (enhances deep spatial illusion)
         colorType = 'gray';
-        colorRgb = '170, 170, 175';
-        baseAlpha = tier === 'foreground' ? 0.45 : tier === 'midground' ? 0.28 : 0.18;
+        colorRgb = '185, 185, 195';
+        baseAlpha = tier === 'foreground' ? 0.70 : tier === 'midground' ? 0.50 : 0.35;
       } else {
-        // Pristine white spark
+        // Pristine white sparkling star / ember
         colorType = 'white';
         colorRgb = '255, 255, 255';
-        baseAlpha = tier === 'foreground' ? 0.85 : tier === 'midground' ? 0.50 : 0.25;
+        baseAlpha = tier === 'foreground' ? 0.95 : tier === 'midground' ? 0.76 : 0.48;
       }
 
       // Size scales physically with depth:
-      // Background: 0.8 - 1.4px | Midground: 1.5 - 2.4px | Foreground: 2.5 - 3.8px
-      const baseRadius = 0.75 + Math.random() * 0.85;
-      const size = Math.max(0.6, baseRadius * (z * 0.72));
+      // Background: 0.9 - 1.5px | Midground: 1.6 - 2.5px | Foreground: 2.6 - 3.8px
+      const baseRadius = 0.85 + Math.random() * 0.95;
+      const size = Math.max(0.75, baseRadius * (z * 0.74));
 
-      // Glow size is restricted to foreground embers/sparks to avoid heavy GPU blur
+      // Glow size for foreground embers/sparks & bright midground accents
       let glowRadius = 0;
       if (tier === 'foreground') {
-        glowRadius = colorType === 'red' ? 6.5 : 4.0;
-      } else if (tier === 'midground' && colorType === 'red') {
-        glowRadius = 3.5;
+        glowRadius = colorType === 'red' ? 7.0 : 4.8;
+      } else if (tier === 'midground') {
+        glowRadius = colorType === 'red' ? 4.0 : 2.6;
       }
 
       const x = Math.random() * width;
@@ -176,10 +176,10 @@ export const ParticleBackground: React.FC<ParticleBackgroundProps> = ({
         y,
         z,
         tier,
-        vx: (Math.random() - 0.5) * (0.15 * z),
-        vy: (Math.random() - 0.5) * (0.15 * z),
-        drag: 0.91 + Math.random() * 0.04, // slight individual drag variability
-        springStrength: 0.018 + Math.random() * 0.014,
+        vx: (Math.random() - 0.5) * (0.65 * z + 0.35),
+        vy: (Math.random() - 0.5) * (0.65 * z + 0.35),
+        drag: 0.92 + Math.random() * 0.04,
+        springStrength: 0.028 + Math.random() * 0.020,
         swirlDirection: Math.random() > 0.5 ? 1 : -1,
         targetX: x,
         targetY: y,
@@ -192,11 +192,11 @@ export const ParticleBackground: React.FC<ParticleBackgroundProps> = ({
         colorRgb,
         glowRadius,
         driftPhase: Math.random() * Math.PI * 2,
-        driftSpeed: (0.003 + Math.random() * 0.006) * (0.6 + z * 0.4),
-        driftRadiusX: (0.8 + Math.random() * 1.6) * z,
-        driftRadiusY: (0.6 + Math.random() * 1.4) * z,
+        driftSpeed: (0.010 + Math.random() * 0.018) * (0.8 + z * 0.4),
+        driftRadiusX: (1.2 + Math.random() * 2.2) * z,
+        driftRadiusY: (1.0 + Math.random() * 1.8) * z,
         pulsePhase: Math.random() * Math.PI * 2,
-        pulseSpeed: 0.01 + Math.random() * 0.02,
+        pulseSpeed: 0.02 + Math.random() * 0.035,
       });
     }
 
@@ -209,9 +209,9 @@ export const ParticleBackground: React.FC<ParticleBackgroundProps> = ({
       if (!interactive || prefersReducedMotionRef.current) return;
       const normX = (e.clientX / window.innerWidth) * 2 - 1;
       const normY = (e.clientY / window.innerHeight) * 2 - 1;
-      // Maximum parallax displacement: 30px on desktop
-      pointerRef.current.targetX = normX * 30;
-      pointerRef.current.targetY = normY * 30;
+      // Maximum parallax displacement: 36px on desktop
+      pointerRef.current.targetX = normX * 36;
+      pointerRef.current.targetY = normY * 36;
     };
 
     // Mobile Device Orientation Gyroscope Parallax (gentle, safe fallback)
@@ -289,9 +289,9 @@ export const ParticleBackground: React.FC<ParticleBackgroundProps> = ({
         const pulse = Math.sin(p.pulsePhase) * 0.12;
 
         if (isAbstract) {
-          // Free 3D atmospheric wandering with natural inertia
-          p.x += (p.vx + driftX * 0.1) * motionScale;
-          p.y += (p.vy + driftY * 0.1) * motionScale;
+          // Free 3D atmospheric wandering with natural inertia (faster, more alive)
+          p.x += (p.vx + driftX * 0.22) * motionScale;
+          p.y += (p.vy + driftY * 0.22) * motionScale;
 
           // Gentle smooth boundary wrapping (margin 40px)
           if (p.x < -40) p.x = width + 40;
@@ -306,36 +306,36 @@ export const ParticleBackground: React.FC<ParticleBackgroundProps> = ({
           const dist = Math.sqrt(dx * dx + dy * dy);
 
           // Spring pull with distance-attenuated acceleration
-          const springAcc = p.springStrength * Math.min(dist * 0.035, 4.0);
+          const springAcc = p.springStrength * Math.min(dist * 0.045, 5.0);
           const directAngle = Math.atan2(dy, dx);
 
           // Swirl effect decays smoothly as particle nears its formation destination
-          const swirlFactor = Math.min(1, dist / 180) * 0.45;
+          const swirlFactor = Math.min(1, dist / 150) * 0.55;
           const motionAngle = directAngle + (Math.PI / 2) * p.swirlDirection * swirlFactor;
 
-          p.vx += Math.cos(motionAngle) * springAcc * motionScale;
-          p.vy += Math.sin(motionAngle) * springAcc * motionScale;
+          p.vx += Math.cos(motionAngle) * springAcc * motionScale * 1.25;
+          p.vy += Math.sin(motionAngle) * springAcc * motionScale * 1.25;
 
           // Velocity damping / inertia
           p.vx *= p.drag;
           p.vy *= p.drag;
 
-          p.x += (p.vx + driftX * 0.06) * motionScale;
-          p.y += (p.vy + driftY * 0.06) * motionScale;
+          p.x += (p.vx + driftX * 0.12) * motionScale;
+          p.y += (p.vy + driftY * 0.12) * motionScale;
         }
 
         // 2. Depth Parallax (Subtle 3D stereoscopic shift based on tier)
         // Background barely shifts (0.2x), Midground shifts moderately (0.5x), Foreground shifts distinctly (1.0x)
         const depthParallaxFactor = prefersReducedMotionRef.current 
           ? 0 
-          : (p.z * 0.38 + 0.12);
+          : (p.z * 0.45 + 0.15);
         const displayX = p.x + activeParallaxX * depthParallaxFactor;
         const displayY = p.y + activeParallaxY * depthParallaxFactor;
 
         // 3. Opacity Calculation with subtle organic pulse
         const renderAlpha = Math.min(
           1,
-          Math.max(0.05, (p.baseAlpha + pulse) * intensityMul)
+          Math.max(0.08, (p.baseAlpha + pulse) * intensityMul)
         );
 
         // 4. Render Particle Dot
@@ -348,7 +348,7 @@ export const ParticleBackground: React.FC<ParticleBackgroundProps> = ({
         if (p.glowRadius > 0 && renderAlpha > 0.15) {
           ctx.beginPath();
           ctx.arc(displayX, displayY, p.size + p.glowRadius, 0, Math.PI * 2);
-          const glowAlpha = p.colorType === 'red' ? renderAlpha * 0.20 : renderAlpha * 0.12;
+          const glowAlpha = p.colorType === 'red' ? renderAlpha * 0.28 : renderAlpha * 0.16;
           ctx.fillStyle = `rgba(${p.colorRgb}, ${glowAlpha})`;
           ctx.fill();
         }
@@ -376,7 +376,7 @@ export const ParticleBackground: React.FC<ParticleBackgroundProps> = ({
     <div className={`pointer-events-none fixed inset-0 z-0 overflow-hidden ${className}`}>
       <canvas
         ref={canvasRef}
-        className="block h-full w-full opacity-90 transition-opacity duration-1000"
+        className="block h-full w-full opacity-100 transition-opacity duration-700"
       />
       {/* Subtle cinematic radial vignette to frame typography and visuals */}
       <div className="cinematic-vignette absolute inset-0 pointer-events-none" />
