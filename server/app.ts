@@ -8,7 +8,8 @@ import {
   saveExperienceRecord, 
   getExperienceRecord, 
   markExperienceExpired,
-  simulateExpireInDb 
+  simulateExpireInDb,
+  isSupabaseConfigured
 } from './supabaseClient';
 import { 
   uploadMediaToSupabaseStorage, 
@@ -23,22 +24,52 @@ dotenv.config();
 
 export const app = express();
 
-// High body limits to allow client-optimized media batch uploads (max 60MB)
-app.use(express.json({ limit: '60mb' }));
-app.use(express.urlencoded({ limit: '60mb', extended: true }));
+// Diagnostic logging for serverless initialization (safe: zero secret leakage)
+console.log(`[INIT] SUPABASE_URL_PRESENT=${Boolean(process.env.SUPABASE_URL)}`);
+console.log(`[INIT] SUPABASE_SECRET_KEY_PRESENT=${Boolean(process.env.SUPABASE_SECRET_KEY)}`);
+console.log(`[INIT] GEMINI_API_KEY_PRESENT=${Boolean(process.env.GEMINI_API_KEY)}`);
 
-// Start background 24-hour cleanup worker (checks every 5 minutes)
+/**
+ * CONDITIONAL BODY PARSER:
+ * In Vercel serverless environments (@vercel/node), Vercel pre-consumes the incoming HTTP stream
+ * and populates `req.body`. Re-invoking express.json() on an already-consumed stream causes
+ * `InternalServerError: stream is not readable`, producing HTTP 500 errors.
+ * This middleware checks if `req.body` is already parsed before invoking body-parser.
+ */
+const jsonParser = express.json({ limit: '60mb' });
+const urlencodedParser = express.urlencoded({ limit: '60mb', extended: true });
+
+app.use((req, res, next) => {
+  if (req.body !== undefined && typeof req.body === 'object') {
+    return next();
+  }
+  jsonParser(req, res, (err) => {
+    if (err) return next(err);
+    urlencodedParser(req, res, next);
+  });
+});
+
+// Start background 24-hour cleanup worker (auto-disabled on Vercel where Cron is preferred)
 startCleanupScheduler();
 
-// Server-side Gemini AI client initialization
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
-    },
-  },
-});
+// Safe lazy/resilient Gemini AI client initialization
+function getAiClient(): GoogleGenAI | null {
+  if (!process.env.GEMINI_API_KEY) {
+    return null;
+  }
+  try {
+    return new GoogleGenAI({
+      apiKey: process.env.GEMINI_API_KEY,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+      },
+    });
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Helper: Client IP extraction for rate limiting
@@ -55,19 +86,44 @@ function getClientIp(req: express.Request): string {
 const apiRouter = express.Router();
 
 /**
- * GET /global-counter
+ * SAFE DIAGNOSTIC HEALTH CHECK
+ * GET /diagnostic and GET /api/diagnostic
+ * Confirms environment variable readiness without exposing sensitive keys.
  */
-apiRouter.get('/global-counter', async (req, res) => {
+apiRouter.get(['/diagnostic', '/health'], (req, res) => {
+  res.json({
+    status: 'healthy',
+    SUPABASE_URL_PRESENT: Boolean(process.env.SUPABASE_URL),
+    SUPABASE_SECRET_KEY_PRESENT: Boolean(process.env.SUPABASE_SECRET_KEY),
+    GEMINI_API_KEY_PRESENT: Boolean(process.env.GEMINI_API_KEY),
+    isSupabaseConfigured,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/**
+ * LIFETIME GLOBAL COUNTER ENDPOINT
+ * GET /global-counter and POST /global-counter
+ * Supports both GET and POST requests gracefully.
+ */
+const handleGlobalCounter = async (req: express.Request, res: express.Response) => {
   try {
     const count = await getGlobalCounter();
     res.json({ success: true, count });
   } catch (err: any) {
-    res.status(500).json({ success: false, count: 12482 });
+    console.error('Error fetching global counter:', err?.message);
+    res.status(500).json({ success: false, error: 'Failed to retrieve counter', count: 12482 });
   }
-});
+};
+
+apiRouter.get('/global-counter', handleGlobalCounter);
+apiRouter.post('/global-counter', handleGlobalCounter);
 
 /**
+ * TEMPORARY MEDIA UPLOAD ENDPOINT
  * POST /upload-media
+ * Receives browser-optimized photo (WebP/JPEG/PNG) or MP3 audio.
+ * Enforces server-side validation and uploads to private Supabase Storage bucket: birthday-media.
  */
 apiRouter.post('/upload-media', async (req, res) => {
   const clientIp = getClientIp(req);
@@ -81,7 +137,7 @@ apiRouter.post('/upload-media', async (req, res) => {
   }
 
   try {
-    const { experienceId, type, dataBase64, mimeType } = req.body;
+    const { experienceId, type, dataBase64, mimeType } = req.body || {};
 
     if (!experienceId || typeof experienceId !== 'string') {
       res.status(400).json({ success: false, error: 'Invalid experience identifier.' });
@@ -143,6 +199,7 @@ apiRouter.post('/upload-media', async (req, res) => {
 });
 
 /**
+ * SERVER-CONTROLLED MEDIA ACCESS ENDPOINT
  * GET /media/:experienceId/:type/:filename
  */
 apiRouter.get('/media/:experienceId/:type/:filename', async (req, res) => {
@@ -179,6 +236,7 @@ apiRouter.get('/media/:experienceId/:type/:filename', async (req, res) => {
 });
 
 /**
+ * REAL PUBLISH ENDPOINT
  * POST /publish
  */
 apiRouter.post('/publish', async (req, res) => {
@@ -195,7 +253,7 @@ apiRouter.post('/publish', async (req, res) => {
   }
 
   try {
-    const { draft, experienceId: requestedId } = req.body;
+    const { draft, experienceId: requestedId } = req.body || {};
 
     if (!draft || !draft.recipientName || !draft.recipientName.trim()) {
       res.status(400).json({ success: false, error: 'A recipient name is required to publish.' });
@@ -331,6 +389,7 @@ apiRouter.post('/publish', async (req, res) => {
 });
 
 /**
+ * GET PUBLIC EXPERIENCE ENDPOINT
  * GET /experience/:experienceId
  */
 apiRouter.get('/experience/:experienceId', async (req, res) => {
@@ -444,24 +503,80 @@ apiRouter.post('/cron/cleanup', async (req, res) => {
 });
 
 /**
- * POST /ai/generate-birthday-content
+ * Helper: Cinematic fallback generator when AI API key is missing or fails
  */
-apiRouter.post('/ai/generate-birthday-content', async (req, res) => {
+function getCinematicFallback(req: any) {
+  const name = req.recipientName || 'Alex';
+  const age = req.milestoneAge ? `${req.milestoneAge}th` : '';
+  const rel = req.relationship === 'Other' ? req.customRelationship : req.relationship;
+
+  const openingWish = req.creatorMessage && req.creatorMessage.trim().length > 10
+    ? req.creatorMessage.trim()
+    : `Happy Birthday, ${name}! Today is a tribute to every laugh, journey, and quiet adventure that makes you irreplaceable.`;
+
+  const intro = req.milestoneAge
+    ? `${req.milestoneAge} Orbits Around The Sun`
+    : 'A Tribute to Unforgettable Moments';
+
+  const story = req.creatorMessage && req.creatorMessage.trim().length > 15
+    ? req.creatorMessage
+    : `From early dawn departures to late-night conversations under starlit skies, your steady light and relentless kindness continue to inspire everyone lucky enough to share this journey with you.`;
+
+  const innerCircleIntro = rel
+    ? `An intimate circle of those who know your light best—celebrating our cherished bond as ${rel.toLowerCase()}.`
+    : `A sacred constellation of the memories and people closest to your heart.`;
+
+  const vaultIntro = 'Some moments are too precious for ordinary days. Here they are preserved eternally in the 3D vault.';
+
+  const surpriseText = req.hasSurprisePhoto
+    ? 'A confidential memory unlocked exclusively for your eyes.'
+    : undefined;
+
+  const finalWish = `May the year ahead bring the same unyielding joy, laughter, and courage that you give to the world every single day. Happy ${age} Birthday, ${name}.`;
+
+  return {
+    openingWish,
+    intro,
+    story,
+    photoCaptions: Array.from({ length: req.photoCount || 3 }).map((_, i) => `Chapter ${i + 1} Memory`),
+    innerCircleIntro,
+    vaultIntro,
+    surpriseText,
+    finalWish,
+  };
+}
+
+/**
+ * GENERATE BIRTHDAY CONTENT ENDPOINT
+ * Handles both POST /ai/generate-birthday-content and POST /generate-birthday-content
+ */
+const handleGenerateBirthdayContent = async (req: express.Request, res: express.Response) => {
+  const { 
+    recipientName = 'Alex', 
+    relationship, 
+    customRelationship, 
+    milestoneAge, 
+    birthdayDate, 
+    senderName, 
+    creatorMessage,
+    photoCount = 3,
+    hasSurprisePhoto = false
+  } = req.body || {};
+
+  const actualRel = relationship === 'Other' ? customRelationship : relationship;
+  const aiClient = getAiClient();
+
+  // If Gemini API is not configured, seamlessly return high-fidelity cinematic fallback
+  if (!aiClient) {
+    console.log('[AI] GEMINI_API_KEY not configured, serving cinematic fallback story');
+    return res.json({ 
+      success: true, 
+      content: getCinematicFallback(req.body),
+      fallbackUsed: true 
+    });
+  }
+
   try {
-    const { 
-      recipientName, 
-      relationship, 
-      customRelationship, 
-      milestoneAge, 
-      birthdayDate, 
-      senderName, 
-      creatorMessage,
-      photoCount = 3,
-      hasSurprisePhoto = false
-    } = req.body;
-
-    const actualRel = relationship === 'Other' ? customRelationship : relationship;
-
     const prompt = `
 You are the master cinematic storyteller and narrative director for "Itzfizz Celebrations" — an ultra-premium, deeply moving personalized birthday tribute platform.
 
@@ -488,7 +603,7 @@ Requirements:
 Tone: Warm, luxurious, profoundly emotional, heartfelt, authentic. Avoid generic birthday clichés.
 `;
 
-    const response = await ai.models.generateContent({
+    const response = await aiClient.models.generateContent({
       model: 'gemini-3.8-flash',
       contents: prompt,
       config: {
@@ -524,32 +639,46 @@ Tone: Warm, luxurious, profoundly emotional, heartfelt, authentic. Avoid generic
     const parsed = JSON.parse(response.text?.trim() || '{}');
     res.json({ success: true, content: parsed });
   } catch (error: any) {
-    console.error('Error generating AI birthday content:', error?.message);
-    res.status(500).json({
-      success: false,
-      error: error?.message || 'Failed to generate birthday story',
+    console.error('Error generating AI birthday content (falling back):', error?.message);
+    // Graceful degradation: return safe fallback rather than breaking creator workflow with 500
+    res.json({ 
+      success: true, 
+      content: getCinematicFallback(req.body),
+      fallbackUsed: true 
     });
   }
-});
+};
+
+apiRouter.post('/ai/generate-birthday-content', handleGenerateBirthdayContent);
+apiRouter.post('/generate-birthday-content', handleGenerateBirthdayContent);
 
 /**
- * POST /ai/regenerate-section
+ * REGENERATE SECTION ENDPOINT
+ * Handles both POST /ai/regenerate-section and POST /regenerate-section
  */
-apiRouter.post('/ai/regenerate-section', async (req, res) => {
+const handleRegenerateSection = async (req: express.Request, res: express.Response) => {
+  const { 
+    section, 
+    recipientName = 'Alex', 
+    relationship, 
+    customRelationship, 
+    milestoneAge, 
+    creatorMessage, 
+    senderName,
+    currentValue 
+  } = req.body || {};
+
+  const actualRel = relationship === 'Other' ? customRelationship : relationship;
+  const aiClient = getAiClient();
+
+  if (!aiClient) {
+    return res.json({ 
+      success: true, 
+      text: currentValue || `Happy Birthday to ${recipientName}!` 
+    });
+  }
+
   try {
-    const { 
-      section, 
-      recipientName, 
-      relationship, 
-      customRelationship, 
-      milestoneAge, 
-      creatorMessage, 
-      senderName,
-      currentValue 
-    } = req.body;
-
-    const actualRel = relationship === 'Other' ? customRelationship : relationship;
-
     const prompt = `
 You are rewriting a single section of a cinematic birthday experience for ${recipientName} (${actualRel || 'cherished friend'}${milestoneAge ? `, celebrating ${milestoneAge}th milestone` : ''}).
 ${senderName ? `From: ${senderName}.` : ''}
@@ -559,19 +688,10 @@ ${currentValue ? `Current draft to improve upon: "${currentValue}".` : ''}
 Target Section: "${section}".
 Rewrite this section with fresh phrasing, theater-grade emotional resonance, and cinematic warmth.
 
-Section Guidelines:
-${section === 'openingWish' ? 'Act I Opening Wish: An emotional, theater-quality birthday greeting.' : ''}
-${section === 'intro' ? 'Prologue Tagline: A short, poetic milestone subtitle.' : ''}
-${section === 'story' ? 'Memory Story: A rich 2-3 sentence narrative on shared journey and character.' : ''}
-${section === 'innerCircleIntro' ? 'Inner Circle Reflection: A 1-2 sentence salute to closest friends and cherished bonds.' : ''}
-${section === 'vaultIntro' ? '3D Photo Vault Intro: A 1 sentence reflection on preserving memories in a digital sanctuary.' : ''}
-${section === 'surpriseText' ? 'Surprise Reveal: A 1 sentence confidential reveal line for the secret photo.' : ''}
-${section === 'finalWish' ? 'Act VII Final Wish: An unforgettable emotional epilogue and birthday salute.' : ''}
-
 Return ONLY a JSON object with a single string property "text".
 `;
 
-    const response = await ai.models.generateContent({
+    const response = await aiClient.models.generateContent({
       model: 'gemini-3.8-flash',
       contents: prompt,
       config: {
@@ -590,12 +710,15 @@ Return ONLY a JSON object with a single string property "text".
     res.json({ success: true, text: parsed.text });
   } catch (error: any) {
     console.error('Error regenerating section:', error?.message);
-    res.status(500).json({
-      success: false,
-      error: error?.message || 'Failed to regenerate section',
+    res.json({ 
+      success: true, 
+      text: currentValue || `Happy Birthday to ${recipientName}!` 
     });
   }
-});
+};
+
+apiRouter.post('/ai/regenerate-section', handleRegenerateSection);
+apiRouter.post('/regenerate-section', handleRegenerateSection);
 
 // Mount the apiRouter on BOTH '/api' and '/' so routes match under any Vercel serverless routing configuration
 app.use('/api', apiRouter);
