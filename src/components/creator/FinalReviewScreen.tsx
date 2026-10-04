@@ -54,7 +54,7 @@ export const FinalReviewScreen: React.FC<FinalReviewScreenProps> = ({
       {/* Header */}
       <div className="text-center space-y-2">
         <span className="text-xs font-mono tracking-[0.25em] uppercase text-[#E50914] font-semibold">
-          STEP 06 OF 06 · FINAL CHECKPOINT
+          STEP 08 OF 08 · FINAL CHECKPOINT
         </span>
         <h2 className="font-cinzel text-3xl sm:text-5xl font-black text-white uppercase tracking-tight">
           FINAL PRE-PUBLISH REVIEW
@@ -246,7 +246,7 @@ export const FinalReviewScreen: React.FC<FinalReviewScreenProps> = ({
           </div>
 
           {/* 7. Final Birthday Wish */}
-          <div className="p-4 rounded-2xl bg-[#141414] border border-[#262626] flex items-start gap-3.5 md:col-span-2">
+          <div className="p-4 rounded-2xl bg-[#141414] border border-[#262626] flex items-start gap-3.5">
             <div className="w-8 h-8 rounded-xl bg-[#1A1A1A] flex items-center justify-center shrink-0 border border-white/10">
               <Sparkles className="w-4 h-4 text-[#E50914]" />
             </div>
@@ -263,6 +263,37 @@ export const FinalReviewScreen: React.FC<FinalReviewScreenProps> = ({
                   Presented with love by {draft.senderName}
                 </p>
               )}
+            </div>
+          </div>
+
+          {/* 8. Visual Template & Colour Palette */}
+          <div className="p-4 rounded-2xl bg-[#141414] border border-[#262626] flex items-start gap-3.5">
+            <div
+              className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border border-white/15 shadow-inner"
+              style={{ backgroundColor: draft.theme?.background || '#080808' }}
+            >
+              <span
+                className="w-3.5 h-3.5 rounded-full"
+                style={{ backgroundColor: draft.theme?.primary || '#E50914' }}
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-white">
+                  {(draft.template || 'cinema').toUpperCase()} · {(draft.customization?.photoStyle || 'cinematic').toUpperCase()}
+                </span>
+                <span className="text-emerald-400 font-mono text-[11px]">✓ Styled</span>
+              </div>
+              <p className="text-neutral-400 truncate mt-0.5 flex items-center gap-1.5 font-mono text-[11px]">
+                <span>Photo: {(draft.customization?.photoStyle || 'cinematic').toUpperCase()}</span>
+                <span>·</span>
+                <span style={{ color: draft.theme?.primary || '#E50914' }}>Primary</span>
+                <span>·</span>
+                <span style={{ color: draft.theme?.secondary || '#FFFFFF' }}>Secondary</span>
+              </p>
+              <p className="text-[10px] text-neutral-500 font-mono mt-1">
+                Visual language, photo mode & palette locked to premiere
+              </p>
             </div>
           </div>
         </div>

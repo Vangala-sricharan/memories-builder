@@ -12,10 +12,10 @@ interface BirthdayDetailsFormProps {
 const RELATIONSHIP_OPTIONS = [
   'Best Friend',
   'Friend',
-  'Partner',
   'Brother',
   'Sister',
-  'Cousin',
+  'Partner',
+  'Parent',
   'Family',
   'Other',
 ];
@@ -63,7 +63,7 @@ export const BirthdayDetailsForm: React.FC<BirthdayDetailsFormProps> = ({
       {/* Step Header */}
       <div className="text-center mb-10">
         <span className="text-xs font-mono tracking-[0.25em] uppercase text-[#E50914] font-semibold">
-          STEP 01 OF 06
+          STEP 02 OF 08 · RECIPIENT PROFILE
         </span>
         <h2 className="font-cinzel text-3xl sm:text-4xl font-bold text-white mt-1 mb-3 [text-wrap:balance]">
           WHO ARE WE CELEBRATING?
@@ -107,9 +107,12 @@ export const BirthdayDetailsForm: React.FC<BirthdayDetailsFormProps> = ({
 
         {/* Relationship Selector */}
         <div>
-          <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-300 mb-2">
-            Your Relationship
+          <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-300 mb-1">
+            Who are they to you?
           </label>
+          <p className="text-[11px] text-neutral-500 mb-3">
+            Subtly influences the storytelling tone. Creator-written messages always take priority.
+          </p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-3">
             {RELATIONSHIP_OPTIONS.map((rel) => {
               const isSelected = draft.relationship === rel;
@@ -219,7 +222,7 @@ export const BirthdayDetailsForm: React.FC<BirthdayDetailsFormProps> = ({
             className="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-neutral-400 hover:text-white bg-[#141414] border border-[#2A2A2A] rounded-xl hover:bg-[#1C1C1C] transition-colors cursor-pointer flex items-center gap-2"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Cancel</span>
+            <span>Back to Template</span>
           </button>
 
           <button

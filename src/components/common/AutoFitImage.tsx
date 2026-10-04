@@ -6,7 +6,7 @@ export interface AutoFitImageProps extends React.ImgHTMLAttributes<HTMLImageElem
   className?: string;
   containerClassName?: string;
   /** Custom focal alignment override if explicitly desired */
-  focalPoint?: 'auto' | 'top' | 'center' | 'bottom';
+  focalPoint?: 'auto' | 'top' | 'center' | 'bottom' | 'left' | 'right';
   /** Whether to render a subtle ambient blurred backdrop layer behind the photo */
   enableBackdropGlow?: boolean;
 }
@@ -73,6 +73,10 @@ export const AutoFitImage: React.FC<AutoFitImageProps> = ({
         setObjectPosition('50% 50%');
       } else if (focalPoint === 'bottom') {
         setObjectPosition('50% 80%');
+      } else if (focalPoint === 'left') {
+        setObjectPosition('18% 50%');
+      } else if (focalPoint === 'right') {
+        setObjectPosition('82% 50%');
       }
     }
 

@@ -10,12 +10,14 @@ interface CreatorProgressProps {
 }
 
 const STEPS: { id: CreatorStep; number: string; title: string; subtitle: string }[] = [
-  { id: 'details', number: '01', title: 'DETAILS', subtitle: 'Recipient & Date' },
-  { id: 'photos', number: '02', title: 'MEMORIES', subtitle: '3–20 Photos' },
-  { id: 'curate', number: '03', title: 'CURATE', subtitle: 'Hero & Circle' },
-  { id: 'music', number: '04', title: 'SOUNDTRACK', subtitle: 'Personal MP3' },
-  { id: 'customize', number: '05', title: 'AI STORY', subtitle: 'Director & Tone' },
-  { id: 'review', number: '06', title: 'FINAL REVIEW', subtitle: 'Check & Publish' },
+  { id: 'template', number: '01', title: 'TEMPLATE', subtitle: 'Film Aesthetic' },
+  { id: 'details', number: '02', title: 'DETAILS', subtitle: 'Recipient & Date' },
+  { id: 'photos', number: '03', title: 'MEMORIES', subtitle: '3–20 Photos' },
+  { id: 'curate', number: '04', title: 'CURATE', subtitle: 'Hero & Circle' },
+  { id: 'music', number: '05', title: 'SOUNDTRACK', subtitle: 'Personal MP3' },
+  { id: 'customize', number: '06', title: 'AI STORY', subtitle: 'Director & Tone' },
+  { id: 'theme', number: '07', title: 'CUSTOMISE', subtitle: 'Colours & Styling' },
+  { id: 'review', number: '08', title: 'FINAL REVIEW', subtitle: 'Check & Publish' },
 ];
 
 export const CreatorProgress: React.FC<CreatorProgressProps> = ({
@@ -34,7 +36,7 @@ export const CreatorProgress: React.FC<CreatorProgressProps> = ({
         <div className="flex md:hidden items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="font-mono text-xs text-[#E50914] font-bold">
-              STEP {STEPS[safeIndex].number} / 06
+              STEP {STEPS[safeIndex].number} / 08
             </span>
             <span className="text-white text-xs font-semibold uppercase tracking-wider">
               {STEPS[safeIndex].title}

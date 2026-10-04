@@ -113,12 +113,17 @@ export const PublishedRecipientExperience: React.FC<PublishedRecipientExperience
   }
 
   return (
-    <div className="min-h-screen bg-[#070707] text-white selection:bg-[#E50914] relative overflow-x-hidden">
+    <div
+      className="min-h-screen text-white relative overflow-x-hidden transition-colors duration-300"
+      style={{ backgroundColor: snapshot.theme?.background || '#070707' }}
+    >
       {/* Global Particle Atmosphere */}
       <ParticleBackground
         currentShape="abstract"
         intensity={snapshot.particleIntensity || 'normal'}
         interactive={true}
+        template={snapshot.template || 'cinema'}
+        primaryColor={snapshot.theme?.primary || '#E50914'}
       />
 
       {/* Floating Recipient Top Navigation (Completely clean, zero editor controls) */}
@@ -193,6 +198,9 @@ export const PublishedRecipientExperience: React.FC<PublishedRecipientExperience
       {/* Main 7-Act Storyline Flow */}
       <main className="relative z-10 pt-24 pb-28 max-w-6xl mx-auto">
         <BirthdayStoryExperience
+          template={snapshot.template}
+          theme={snapshot.theme}
+          customization={snapshot.customization}
           recipientName={snapshot.recipientName}
           birthdayMessage={snapshot.birthdayMessage}
           tagline={snapshot.tagline}

@@ -5,14 +5,19 @@ import {
   UploadedPhoto, 
   UploadedMusic,
   PublishedExperienceSnapshot,
-  PublishStatus 
+  PublishStatus,
+  ExperienceTemplate,
+  ExperienceTheme
 } from '../../types';
+import { TEMPLATES, DEFAULT_CUSTOMIZATION } from '../../utils/themeTokens';
 import { CreatorProgress } from './CreatorProgress';
+import { TemplateSelectorStep } from './TemplateSelectorStep';
 import { BirthdayDetailsForm } from './BirthdayDetailsForm';
 import { PhotoUploader } from './PhotoUploader';
 import { StoryCurationStep } from './StoryCurationStep';
 import { MusicUploader } from './MusicUploader';
 import { CustomizationPanel } from './CustomizationPanel';
+import { CustomizationStudio } from './CustomizationStudio';
 import { FinalReviewScreen } from './FinalReviewScreen';
 import { PublishConfirmationModal } from './PublishConfirmationModal';
 import { PublishSuccessScreen } from './PublishSuccessScreen';
@@ -29,16 +34,19 @@ export const BirthdayCreator: React.FC<BirthdayCreatorProps> = ({
   onExit,
   onOpenPublishedExperience,
 }) => {
-  const [currentStep, setCurrentStep] = useState<CreatorStep>('details');
-  const [previousStep, setPreviousStep] = useState<CreatorStep>('details');
+  const [currentStep, setCurrentStep] = useState<CreatorStep>('template');
+  const [previousStep, setPreviousStep] = useState<CreatorStep>('template');
   const [publishStatus, setPublishStatus] = useState<PublishStatus>('DRAFT');
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
   const [publishedSnapshot, setPublishedSnapshot] = useState<PublishedExperienceSnapshot | null>(null);
 
-  // In-memory draft state
+  // In-memory draft state with default CINEMA template and default theme
   const [draft, setDraft] = useState<BirthdayExperienceDraft>({
+    template: 'cinema',
+    theme: { ...TEMPLATES.cinema.defaultTheme },
+    customization: { ...DEFAULT_CUSTOMIZATION.cinema },
     recipientName: '',
     relationship: 'Best Friend',
     birthday: '',
@@ -84,6 +92,8 @@ export const BirthdayCreator: React.FC<BirthdayCreatorProps> = ({
   // Step completion checks
   const isStepCompleted = (step: CreatorStep): boolean => {
     switch (step) {
+      case 'template':
+        return !!draft.template;
       case 'details':
         return !!draft.recipientName.trim();
       case 'photos':
@@ -91,8 +101,10 @@ export const BirthdayCreator: React.FC<BirthdayCreatorProps> = ({
       case 'curate':
         return draft.photos.length >= 3;
       case 'music':
-        return true; // Music is optional for testing
+        return true; // Music is optional for testing & quiet mode
       case 'customize':
+        return isStepCompleted('details') && isStepCompleted('photos');
+      case 'theme':
         return isStepCompleted('details') && isStepCompleted('photos');
       case 'review':
         return isStepCompleted('details') && isStepCompleted('photos');
@@ -111,6 +123,8 @@ export const BirthdayCreator: React.FC<BirthdayCreatorProps> = ({
       return step === 'published';
     }
     switch (step) {
+      case 'template':
+        return true;
       case 'details':
         return true;
       case 'photos':
@@ -120,6 +134,8 @@ export const BirthdayCreator: React.FC<BirthdayCreatorProps> = ({
       case 'music':
         return isStepCompleted('details') && isStepCompleted('photos');
       case 'customize':
+        return isStepCompleted('details') && isStepCompleted('photos');
+      case 'theme':
         return isStepCompleted('details') && isStepCompleted('photos');
       case 'review':
         return isStepCompleted('details') && isStepCompleted('photos');
@@ -161,6 +177,9 @@ export const BirthdayCreator: React.FC<BirthdayCreatorProps> = ({
   // Reset to brand new draft (guarantees published snapshot remains independent)
   const handleCreateAnother = () => {
     setDraft({
+      template: 'cinema',
+      theme: { ...TEMPLATES.cinema.defaultTheme },
+      customization: { ...DEFAULT_CUSTOMIZATION.cinema },
       recipientName: '',
       relationship: 'Best Friend',
       birthday: '',
@@ -179,7 +198,7 @@ export const BirthdayCreator: React.FC<BirthdayCreatorProps> = ({
     });
     setPublishedSnapshot(null);
     setPublishStatus('DRAFT');
-    setCurrentStep('details');
+    setCurrentStep('template');
   };
 
   // 1. Dedicated Full Preview Mode (Timer NOT started, no editor controls)
@@ -249,7 +268,7 @@ export const BirthdayCreator: React.FC<BirthdayCreatorProps> = ({
           </span>
           <span className="text-neutral-600">/</span>
           <span className="text-xs font-mono uppercase tracking-wider text-neutral-400">
-            CREATOR STUDIO
+            CREATOR STUDIO · {TEMPLATES[draft.template || 'cinema'].name}
           </span>
         </div>
 
@@ -274,12 +293,25 @@ export const BirthdayCreator: React.FC<BirthdayCreatorProps> = ({
 
       {/* Main Form Content Area */}
       <main className="flex-1 overflow-y-auto">
+        {currentStep === 'template' && (
+          <TemplateSelectorStep
+            selectedTemplate={draft.template || 'cinema'}
+            onSelectTemplate={(template) => {
+              const defaultTheme = TEMPLATES[template].defaultTheme;
+              const defaultCust = DEFAULT_CUSTOMIZATION[template];
+              updateDraft({ template, theme: defaultTheme, customization: defaultCust });
+            }}
+            onNext={() => setCurrentStep('details')}
+            onCancel={onExit}
+          />
+        )}
+
         {currentStep === 'details' && (
           <BirthdayDetailsForm
             draft={draft}
             onUpdate={updateDraft}
             onNext={() => setCurrentStep('photos')}
-            onCancel={onExit}
+            onCancel={() => setCurrentStep('template')}
           />
         )}
 
@@ -320,8 +352,18 @@ export const BirthdayCreator: React.FC<BirthdayCreatorProps> = ({
             draft={draft}
             onUpdate={updateDraft}
             onPreview={handleOpenPreview}
-            onNext={() => setCurrentStep('review')}
+            onNext={() => setCurrentStep('theme')}
             onBack={() => setCurrentStep('music')}
+          />
+        )}
+
+        {currentStep === 'theme' && (
+          <CustomizationStudio
+            draft={draft}
+            onUpdate={updateDraft}
+            onPreview={handleOpenPreview}
+            onNext={() => setCurrentStep('review')}
+            onBack={() => setCurrentStep('customize')}
           />
         )}
 
@@ -330,7 +372,7 @@ export const BirthdayCreator: React.FC<BirthdayCreatorProps> = ({
             draft={draft}
             onPreview={handleOpenPreview}
             onPublishClick={() => setIsPublishModalOpen(true)}
-            onBackToEdit={() => setCurrentStep('customize')}
+            onBackToEdit={() => setCurrentStep('theme')}
           />
         )}
       </main>

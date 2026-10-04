@@ -1,24 +1,39 @@
 import React, { useState, useEffect } from 'react';
-import { UploadedPhoto, UploadedMusic } from '../../types';
+import { 
+  UploadedPhoto, 
+  UploadedMusic, 
+  ExperienceTemplate, 
+  ExperienceTheme,
+  ExperienceCustomization
+} from '../../types';
 import { AutoFitImage } from '../common/AutoFitImage';
+import { PhotoPresentationView } from './photo-presentations/PhotoPresentationView';
+import { HeroPhotoFrame } from './photo-presentations/SinglePhotoPresentationFrames';
+import { FinalCinematicReveal } from './FinalCinematicReveal';
+import { VerticalProgressIndicator, SectionProgressItem } from './VerticalProgressIndicator';
+import { 
+  TEMPLATES, 
+  deriveThemeTokens, 
+  getThemeCssVariables, 
+  SplitHeading,
+  getHeadingFontClass,
+  getBodyFontClass
+} from '../../utils/themeTokens';
 import { 
   Sparkles, 
   Heart, 
   MapPin, 
-  Calendar, 
-  Eye, 
-  Lock, 
-  Unlock, 
   RotateCw, 
-  Volume2, 
-  Play, 
-  Pause,
-  ChevronLeft,
-  ChevronRight,
-  Compass
+  Unlock, 
+  Film,
+  Zap,
+  Crown
 } from 'lucide-react';
 
 interface BirthdayStoryExperienceProps {
+  template?: ExperienceTemplate;
+  theme?: ExperienceTheme;
+  customization?: Partial<ExperienceCustomization>;
   recipientName: string;
   birthdayMessage?: string;
   tagline?: string;
@@ -38,6 +53,9 @@ interface BirthdayStoryExperienceProps {
 }
 
 export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = ({
+  template = 'cinema',
+  theme,
+  customization,
   recipientName = 'Alex',
   birthdayMessage = 'Happy birthday to someone who makes every year richer, brighter, and completely unforgettable.',
   tagline = 'A Cinematic Birthday Story',
@@ -73,59 +91,304 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
   // Selected photo viewer index in Memory Sequence
   const [activeMemoryIndex, setActiveMemoryIndex] = useState(0);
 
+  // Customization derived properties
+  const mood = customization?.mood || (template === 'memories' ? 'emotional' : template === 'celebration' ? 'energetic' : template === 'elegance' ? 'elegant' : 'cinematic');
+  const motionEnergy = customization?.motionEnergy || 'cinematic';
+  const photoStyle = customization?.photoStyle || (template === 'memories' ? 'editorial' : 'cinematic');
+  const heroFocus = customization?.heroFocus || 'auto';
+  const glowStyle = customization?.glowStyle || (template === 'cinema' || template === 'celebration' ? 'cinematic' : 'subtle');
+  const borderStyle = customization?.borderStyle || (template === 'cinema' || template === 'celebration' ? 'cinematic' : 'thin');
+  const occasion = customization?.occasion || 'birthday';
+  const customOccasion = customization?.customOccasion;
+
+  // Custom section titles with sensible defaults
+  const innerCircleTitle = customization?.sectionTitles?.innerCircle?.trim() || 'THE INNER CIRCLE';
+  const memoriesTitle = customization?.sectionTitles?.memories?.trim() || 'THE MEMORY SEQUENCE';
+  const vaultTitle = customization?.sectionTitles?.vault?.trim() || 'THE 3D PHOTO VAULT';
+  const surpriseTitle = customization?.sectionTitles?.surprise?.trim() || 'A SPECIAL SURPRISE MOMENT';
+
+  // Spin speed calculated based on motionEnergy
+  const rotationIncrement = motionEnergy === 'epic' ? 0.75 : motionEnergy === 'subtle' ? 0.22 : 0.42;
+
   // Auto-spin for the 3D Photo Vault
   useEffect(() => {
     if (!isVaultAutoSpinning) return;
     const interval = setInterval(() => {
-      setVaultRotation((prev) => (prev + 0.4) % 360);
+      setVaultRotation((prev) => (prev + rotationIncrement) % 360);
     }, 40);
     return () => clearInterval(interval);
-  }, [isVaultAutoSpinning]);
+  }, [isVaultAutoSpinning, rotationIncrement]);
 
   const totalVaultCards = photos.length;
   const radius = Math.max(260, Math.min(440, photos.length * 45));
 
+  // Compute theme tokens and CSS variables
+  const currentTemplateDef = TEMPLATES[template] || TEMPLATES.cinema;
+  const tokens = deriveThemeTokens(template, theme, customization);
+  const cssVariables = getThemeCssVariables(tokens);
+
+  // Typography font classes
+  const headingFont = getHeadingFontClass(customization?.headingStyle, template);
+  const bodyFont = getBodyFontClass(customization?.bodyStyle);
+
+  // Split title helper for custom section titles
+  const splitWords = (text: string): { primary: string; secondary: string } => {
+    const parts = text.trim().split(' ');
+    if (parts.length <= 1) return { primary: parts[0] || '', secondary: '' };
+    const mid = Math.ceil(parts.length / 2);
+    return {
+      primary: parts.slice(0, mid).join(' '),
+      secondary: parts.slice(mid).join(' '),
+    };
+  };
+
+  const innerCircleSplit = splitWords(innerCircleTitle);
+  const memoriesSplit = splitWords(memoriesTitle);
+  const vaultSplit = splitWords(vaultTitle);
+  const surpriseSplit = splitWords(surpriseTitle);
+
+  // Check prefers-reduced-motion
+  const prefersReducedMotion = typeof window !== 'undefined'
+    ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    : false;
+
+  // Short Cinematic Opening State
+  const [openingPhase, setOpeningPhase] = useState<'dark' | 'light' | 'reveal' | 'ready'>(
+    prefersReducedMotion ? 'ready' : 'dark'
+  );
+
+  // Active section for Vertical Progress Indicator
+  const [activeSectionIndex, setActiveSectionIndex] = useState(0);
+
+  // Opening sequence timer
+  useEffect(() => {
+    if (prefersReducedMotion) return;
+    const t1 = setTimeout(() => setOpeningPhase('light'), 150);
+    const t2 = setTimeout(() => setOpeningPhase('reveal'), 650);
+    const t3 = setTimeout(() => setOpeningPhase('ready'), 1600);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [prefersReducedMotion]);
+
+  // Section list definition for vertical progress indicator
+  const sectionList: SectionProgressItem[] = [
+    { id: 'sec-opening', name: 'OPENING', act: 'ACT I' },
+    { id: 'sec-hero', name: 'SPOTLIGHT', act: 'ACT II' },
+    ...(innerCirclePhotos.length > 0 ? [{ id: 'sec-circle', name: 'CIRCLE', act: 'ACT III' }] : []),
+    { id: 'sec-memories', name: 'MEMORIES', act: 'ACT IV' },
+    { id: 'sec-vault', name: '3D VAULT', act: 'ACT V' },
+    ...(surprisePhoto ? [{ id: 'sec-surprise', name: 'SURPRISE', act: 'ACT VI' }] : []),
+    { id: 'sec-finale', name: 'FINALE', act: surprisePhoto ? 'ACT VII' : 'ACT VI' },
+  ];
+
+  // Scroll to section handler
+  const handleScrollToSection = (idx: number) => {
+    const sec = sectionList[idx];
+    if (sec) {
+      const el = document.getElementById(sec.id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  };
+
+  // IntersectionObserver to track active section for vertical progress
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const index = sectionList.findIndex((s) => s.id === entry.target.id);
+            if (index !== -1) {
+              setActiveSectionIndex(index);
+            }
+          }
+        });
+      },
+      { threshold: 0.25 }
+    );
+
+    sectionList.forEach((s) => {
+      const el = document.getElementById(s.id);
+      if (el) observer.observe(el);
+    });
+
+    return () => observer.disconnect();
+  }, [sectionList]);
+
+  // Occasion label
+  const occasionLabel = occasion === 'other' && customOccasion
+    ? customOccasion.toUpperCase()
+    : occasion === 'milestone'
+    ? 'MILESTONE PREMIERE'
+    : occasion.startsWith('18') || occasion.startsWith('21') || occasion.startsWith('25') || occasion.startsWith('30') || occasion.startsWith('40') || occasion.startsWith('50')
+    ? `${occasion.toUpperCase()} PREMIERE`
+    : '24-HOUR BIRTHDAY PREMIERE';
+
   return (
-    <div className="w-full space-y-24 sm:space-y-32 text-white">
+    <div
+      style={cssVariables}
+      className={`w-full space-y-24 sm:space-y-32 transition-colors duration-300 relative ${bodyFont}`}
+    >
+      {/* Short Cinematic Opening Curtain */}
+      {openingPhase !== 'ready' && (
+        <div
+          onClick={() => setOpeningPhase('ready')}
+          className={`fixed inset-0 z-50 bg-[#040404] flex flex-col items-center justify-center p-6 text-center transition-opacity duration-700 select-none cursor-pointer ${
+            openingPhase === 'dark' ? 'opacity-100' : 'opacity-95'
+          }`}
+        >
+          {/* Subtle Ambient Red Glow */}
+          <div
+            className={`w-72 h-72 rounded-full transition-all duration-1000 pointer-events-none blur-[90px] ${
+              openingPhase === 'light' || openingPhase === 'reveal' ? 'opacity-35 scale-110' : 'opacity-0 scale-75'
+            }`}
+            style={{ backgroundColor: tokens.primary }}
+          />
+
+          <div className="relative z-10 max-w-md space-y-4">
+            <span
+              className={`text-[10px] font-mono uppercase tracking-[0.35em] block transition-all duration-700 ${
+                openingPhase === 'reveal' ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+              }`}
+              style={{ color: tokens.primary }}
+            >
+              24-HOUR BIRTHDAY PREMIERE
+            </span>
+
+            <h2
+              className={`text-2xl sm:text-4xl font-black uppercase tracking-tight text-white transition-all duration-700 ${headingFont} ${
+                openingPhase === 'reveal' ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'
+              }`}
+            >
+              FOR {recipientName}
+            </h2>
+
+            <p
+              className={`text-xs sm:text-sm text-neutral-400 italic transition-all duration-700 ${bodyFont} ${
+                openingPhase === 'reveal' ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+              }`}
+            >
+              "{openingQuote || 'Tonight, your story premieres.'}"
+            </p>
+
+            <div
+              className={`pt-4 transition-all duration-700 ${
+                openingPhase === 'reveal' ? 'opacity-100' : 'opacity-0'
+              }`}
+            >
+              <button
+                type="button"
+                onClick={() => setOpeningPhase('ready')}
+                className="px-5 py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-mono tracking-wider text-white transition-colors cursor-pointer"
+              >
+                ENTER PREMIERE ↓
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Vertical Progress Indicator (Reference-Inspired) */}
+      <VerticalProgressIndicator
+        sections={sectionList}
+        activeSectionIndex={activeSectionIndex}
+        onSelectSection={handleScrollToSection}
+        primaryColor={tokens.primary}
+        secondaryColor={tokens.secondary}
+      />
+
       {/* ======================================================== */}
       {/* 1. SECTION 1 — BIRTHDAY WISH / OPENING                  */}
       {/* ======================================================== */}
-      <section className="relative text-center py-16 sm:py-24 px-4 overflow-hidden">
-        {/* Subtle radial ambient glow */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] bg-[#E50914]/15 rounded-full blur-[140px] pointer-events-none -z-10" />
+      <section id="sec-opening" className="relative text-center py-16 sm:py-24 px-4 overflow-hidden">
+        {/* Ambient template-colored radial glow */}
+        {glowStyle !== 'none' && (
+          <div
+            className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full pointer-events-none -z-10 transition-all duration-700 ${
+              glowStyle === 'subtle' ? 'w-[400px] h-[400px] blur-[80px]' : 'w-[650px] h-[650px] blur-[150px]'
+            }`}
+            style={{ backgroundColor: tokens.glowStrong }}
+          />
+        )}
 
         <div className="max-w-3xl mx-auto space-y-6">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#141414] border border-[#2B2B2B]">
-            <span className="w-2 h-2 rounded-full bg-[#E50914] animate-ping" />
-            <span className="text-[11px] font-mono uppercase tracking-[0.25em] text-neutral-300">
-              ACT I · PROLOGUE
+          {/* Act Badge & Occasion */}
+          <div
+            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border transition-colors"
+            style={{
+              backgroundColor: tokens.surface,
+              borderColor: tokens.border,
+            }}
+          >
+            <span
+              className="w-2 h-2 rounded-full animate-ping"
+              style={{ backgroundColor: tokens.primary }}
+            />
+            <span
+              className="text-[11px] font-mono uppercase tracking-[0.25em]"
+              style={{ color: tokens.secondary }}
+            >
+              ACT I · {occasionLabel} · {mood.toUpperCase()}
             </span>
           </div>
 
-          <p className="text-xs uppercase tracking-[0.35em] text-[#E50914] font-semibold">
+          <p
+            className="text-xs uppercase tracking-[0.35em] font-semibold"
+            style={{ color: tokens.primary }}
+          >
             {tagline}
           </p>
 
-          <h1 className="font-cinzel text-4xl sm:text-6xl md:text-7xl font-black text-white tracking-tight uppercase leading-[1.08] [text-wrap:balance]">
-            HAPPY BIRTHDAY, <br />
-            <span className="text-[#E50914]">{recipientName}</span>
-          </h1>
+          {/* Semantic Split Heading */}
+          <div className="space-y-2">
+            <SplitHeading
+              primaryPart="HAPPY"
+              secondaryPart="BIRTHDAY,"
+              as="h1"
+              className={`text-4xl sm:text-6xl md:text-7xl font-black tracking-tight uppercase [text-wrap:balance] ${headingFont}`}
+            />
+            <div
+              className={`text-4xl sm:text-6xl md:text-7xl font-black tracking-tight uppercase [text-wrap:balance] ${headingFont}`}
+              style={{ color: tokens.primary }}
+            >
+              {recipientName}
+            </div>
+          </div>
 
-          <p className="text-sm sm:text-base md:text-lg text-neutral-300 font-serif italic max-w-xl mx-auto leading-relaxed pt-2">
+          <p
+            className={`text-sm sm:text-base md:text-lg max-w-xl mx-auto leading-relaxed pt-2 ${bodyFont}`}
+            style={{ color: tokens.body }}
+          >
             {openingQuote}
           </p>
 
           {birthdayMessage && (
             <div className="pt-4 max-w-lg mx-auto">
-              <p className="text-xs sm:text-sm text-neutral-300 leading-relaxed font-sans bg-[#121212]/80 border border-[#242424] rounded-xl p-4 sm:p-5 shadow-lg">
+              <div
+                className={`text-xs sm:text-sm leading-relaxed p-4 sm:p-5 rounded-2xl border shadow-lg ${
+                  borderStyle === 'none' ? 'border-transparent' : ''
+                }`}
+                style={{
+                  backgroundColor: tokens.surface,
+                  borderColor: borderStyle === 'none' ? 'transparent' : tokens.border,
+                  color: tokens.body,
+                }}
+              >
                 "{birthdayMessage}"
-              </p>
+              </div>
             </div>
           )}
 
           {senderName && (
-            <div className="text-[11px] font-mono tracking-widest text-neutral-400 uppercase pt-2">
-              PRESENTED WITH LOVE BY {senderName}
+            <div
+              className="text-[11px] font-mono tracking-widest uppercase pt-2"
+              style={{ color: tokens.muted }}
+            >
+              PRESENTED WITH LOVE BY <span style={{ color: tokens.primary }}>{senderName}</span>
             </div>
           )}
         </div>
@@ -135,52 +398,34 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
       {/* 2. SECTION 2 — HERO IMAGE                               */}
       {/* ======================================================== */}
       {heroPhoto && (
-        <section className="relative px-4">
+        <section id="sec-hero" className="relative px-4">
           <div className="max-w-5xl mx-auto">
-            <div className="flex items-center justify-between text-xs font-mono text-neutral-400 mb-3 uppercase tracking-wider">
+            <div className="flex items-center justify-between text-xs font-mono mb-3 uppercase tracking-wider">
               <span className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 bg-[#E50914] rounded-full" />
-                <span>ACT II · HERO SPOTLIGHT</span>
-              </span>
-              <span className="text-neutral-400">2.39:1 CINEMATIC MASTER</span>
-            </div>
-
-            <div className="relative rounded-2xl overflow-hidden border border-[#2B2B2B] bg-[#0A0A0A] shadow-2xl group">
-              {/* Image Frame */}
-              <div className="relative aspect-[16/9] w-full max-h-[580px] bg-black flex items-center justify-center overflow-hidden">
-                <AutoFitImage
-                  src={heroPhoto.previewUrl}
-                  alt={heroPhoto.caption}
-                  enableBackdropGlow={true}
-                  className="group-hover:scale-[1.02] transition-transform duration-700"
+                <span
+                  className="w-1.5 h-1.5 rounded-full"
+                  style={{ backgroundColor: tokens.primary }}
                 />
-
-                {/* Ambient Scrims */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/30 pointer-events-none" />
-
-                {/* Hero Caption Overlay */}
-                <div className="absolute bottom-6 left-6 right-6 z-10 flex flex-col sm:flex-row sm:items-end justify-between gap-2">
-                  <div>
-                    <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#E50914] block mb-1">
-                      THE DEFINITIVE PORTRAIT
-                    </span>
-                    <h3 className="font-cinzel text-xl sm:text-3xl font-bold text-white tracking-wide">
-                      {heroPhoto.caption}
-                    </h3>
-                    {heroPhoto.location && (
-                      <p className="text-xs text-neutral-400 font-mono flex items-center gap-1.5 mt-1">
-                        <MapPin className="w-3.5 h-3.5 text-[#E50914]" />
-                        <span>{heroPhoto.location}</span>
-                        {heroPhoto.year && <span>· {heroPhoto.year}</span>}
-                      </p>
-                    )}
-                  </div>
-                  <span className="font-mono text-xs text-neutral-400 bg-black/80 px-3 py-1 rounded-full border border-white/10 self-start sm:self-auto">
-                    HERO FRAME
-                  </span>
-                </div>
-              </div>
+                <span style={{ color: tokens.secondary }}>
+                  ACT II · {template === 'memories' ? 'SIGNATURE MEMORY' : template === 'elegance' ? 'PORTFOLIO HIGHLIGHT' : 'HERO SPOTLIGHT'}
+                </span>
+              </span>
+              <span style={{ color: tokens.muted }}>
+                STYLE: {photoStyle.toUpperCase()} · FOCUS: {heroFocus.toUpperCase()}
+              </span>
             </div>
+
+            <HeroPhotoFrame
+              photo={heroPhoto}
+              photoStyle={photoStyle}
+              template={template}
+              tokens={tokens}
+              headingFont={headingFont}
+              bodyFont={bodyFont}
+              heroFocus={heroFocus}
+              glowStyle={glowStyle}
+              borderStyle={borderStyle}
+            />
           </div>
         </section>
       )}
@@ -189,47 +434,172 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
       {/* 3. SECTION 3 — INNER CIRCLE                             */}
       {/* ======================================================== */}
       {innerCirclePhotos.length > 0 && (
-        <section className="relative px-4">
+        <section id="sec-circle" className="relative px-4">
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-10">
-              <span className="text-xs font-mono tracking-[0.25em] uppercase text-[#E50914] font-semibold block mb-2">
-                ACT III · INTIMATE CONNECTIONS
+              <span
+                className="text-xs font-mono tracking-[0.25em] uppercase font-semibold block mb-2"
+                style={{ color: tokens.primary }}
+              >
+                ACT III · {template === 'celebration' ? 'THE CREW' : template === 'elegance' ? 'PRIVATE COLLECTION' : 'INTIMATE CONNECTIONS'}
               </span>
-              <h2 className="font-cinzel text-3xl sm:text-4xl font-bold text-white mb-3">
-                THE INNER CIRCLE
-              </h2>
-              <p className="text-xs sm:text-sm text-neutral-300 max-w-lg mx-auto leading-relaxed">
+              <SplitHeading
+                primaryPart={innerCircleSplit.primary}
+                secondaryPart={innerCircleSplit.secondary}
+                as="h2"
+                className={`text-3xl sm:text-4xl font-bold mb-3 ${headingFont}`}
+              />
+              <p
+                className={`text-xs sm:text-sm max-w-lg mx-auto leading-relaxed ${bodyFont}`}
+                style={{ color: tokens.body }}
+              >
                 {innerCircleIntro || 'A curated constellation of the most cherished milestones and closest companions.'}
               </p>
             </div>
 
-            {/* Circular Composition Layout */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {innerCirclePhotos.map((photo, idx) => (
-                <div
-                  key={photo.id}
-                  className="bg-[#121212] border border-[#262626] hover:border-[#E50914] rounded-2xl p-4 transition-all duration-300 group hover:-translate-y-1 shadow-lg"
-                >
-                  <div className="aspect-square rounded-xl overflow-hidden bg-black mb-3 relative">
-                    <AutoFitImage
-                      src={photo.previewUrl}
-                      alt={photo.caption}
-                      className="group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <div className="absolute top-2 left-2 bg-black/80 text-[10px] font-mono px-2 py-0.5 rounded text-white border border-white/15">
-                      CIRCLE #{idx + 1}
+            {/* Circular / Gallery Composition Grid */}
+            {photoStyle === 'polaroid' ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 pt-2">
+                {innerCirclePhotos.map((photo, idx) => {
+                  const angles = [-2.2, 1.8, -1.5, 2.4, -1.8, 1.6];
+                  const angle = angles[idx % angles.length];
+                  return (
+                    <div
+                      key={photo.id}
+                      className="relative group transition-all duration-300"
+                    >
+                      {/* Mini top tape */}
+                      <div 
+                        className="absolute -top-2 left-1/2 -translate-x-1/2 w-12 h-4 bg-[#eae5d8]/80 border border-black/10 shadow-xs z-10 rounded-[1px] pointer-events-none transform -rotate-1"
+                        style={{ clipPath: 'polygon(0 0, 100% 4%, 96% 100%, 4% 96%)' }}
+                      />
+                      <div
+                        className="bg-[#FAF8F5] text-[#1c1917] p-3 pb-6 rounded-[3px] shadow-[0_12px_28px_rgba(0,0,0,0.5),0_2px_8px_rgba(0,0,0,0.3)] border border-[#e8e4dc] transition-all duration-300 group-hover:scale-105 group-hover:rotate-0 group-hover:z-20 group-hover:shadow-2xl"
+                        style={{ transform: `rotate(${angle}deg)` }}
+                      >
+                        <div className="aspect-square overflow-hidden bg-black mb-2.5 relative rounded-[2px] shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)] border border-black/15">
+                          <AutoFitImage
+                            src={photo.previewUrl}
+                            alt={photo.caption}
+                            focalPoint={heroFocus as any}
+                            className="group-hover:scale-105 transition-transform duration-500"
+                          />
+                          <div className="absolute top-1.5 left-1.5 text-[8px] font-mono px-1.5 py-0.5 rounded bg-black/70 text-white/90">
+                            CIRCLE #{idx + 1}
+                          </div>
+                        </div>
+                        <div 
+                          className="font-serif italic text-xs font-bold text-[#1c1917] truncate leading-tight"
+                          style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+                        >
+                          {photo.caption}
+                        </div>
+                        <div className="text-[10px] font-mono text-[#78716c] truncate mt-0.5">
+                          {photo.location || photo.year || 'Cherished Memory'}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : photoStyle === 'film-strip' ? (
+              <div className="bg-[#090909] border-y-2 border-[#262626] rounded-xl p-3 shadow-2xl space-y-2">
+                <div className="h-3.5 bg-[#0C0C0C] border-b border-[#202020] px-3 flex items-center gap-3 overflow-hidden select-none">
+                  {Array.from({ length: 36 }).map((_, i) => (
+                    <div key={`ic-top-${i}`} className="w-2.5 h-1.5 rounded-[1px] bg-[#161616] border border-[#303030] shrink-0" />
+                  ))}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 py-1">
+                  {innerCirclePhotos.map((photo, idx) => (
+                    <div
+                      key={photo.id}
+                      className="border border-[#282828] bg-[#101010] p-2 rounded-lg group hover:border-[#E50914] transition-all"
+                    >
+                      <div className="flex items-center justify-between text-[9px] font-mono text-neutral-400 mb-1 px-1">
+                        <span style={{ color: tokens.primary }}>▸ 35MM · C{idx + 1}</span>
+                        <span>CIRCLE</span>
+                      </div>
+                      <div className="aspect-[4/3] overflow-hidden bg-black rounded relative mb-2">
+                        <AutoFitImage
+                          src={photo.previewUrl}
+                          alt={photo.caption}
+                          focalPoint={heroFocus as any}
+                          className="group-hover:scale-105 transition-transform duration-500"
+                        />
+                      </div>
+                      <div className="text-xs font-semibold text-white truncate px-1">
+                        {photo.caption}
+                      </div>
+                      <div className="text-[10px] font-mono text-neutral-400 truncate px-1">
+                        {photo.location || photo.year || 'Key Frame'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="h-3.5 bg-[#0C0C0C] border-t border-[#202020] px-3 flex items-center gap-3 overflow-hidden select-none">
+                  {Array.from({ length: 36 }).map((_, i) => (
+                    <div key={`ic-bot-${i}`} className="w-2.5 h-1.5 rounded-[1px] bg-[#161616] border border-[#303030] shrink-0" />
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {innerCirclePhotos.map((photo, idx) => (
+                  <div
+                    key={photo.id}
+                    className={`border p-4 transition-all duration-300 group hover:-translate-y-1 shadow-lg ${
+                      photoStyle === 'fullscreen'
+                        ? 'rounded-2xl border-2'
+                        : template === 'memories'
+                        ? 'rounded-3xl'
+                        : template === 'elegance'
+                        ? 'rounded-lg border-white/10'
+                        : 'rounded-2xl'
+                    }`}
+                    style={{
+                      backgroundColor: tokens.surface,
+                      borderColor: borderStyle === 'none' ? 'transparent' : tokens.border,
+                    }}
+                  >
+                    <div
+                      className={`aspect-square overflow-hidden bg-black mb-3 relative ${
+                        template === 'memories' ? 'rounded-2xl' : template === 'elegance' ? 'rounded-sm' : 'rounded-xl'
+                      }`}
+                    >
+                      <AutoFitImage
+                        src={photo.previewUrl}
+                        alt={photo.caption}
+                        focalPoint={heroFocus as any}
+                        className="group-hover:scale-105 transition-transform duration-500"
+                      />
+                      <div
+                        className="absolute top-2 left-2 text-[10px] font-mono px-2 py-0.5 rounded border"
+                        style={{
+                          backgroundColor: 'rgba(0,0,0,0.8)',
+                          borderColor: tokens.border,
+                          color: tokens.secondary,
+                        }}
+                      >
+                        CIRCLE #{idx + 1}
+                      </div>
+                    </div>
+
+                    <div
+                      className="text-sm font-semibold truncate mb-1"
+                      style={{ color: tokens.secondary }}
+                    >
+                      {photo.caption}
+                    </div>
+                    <div
+                      className="text-[11px] font-mono truncate"
+                      style={{ color: tokens.muted }}
+                    >
+                      {photo.location || photo.year || 'Timeless Memory'}
                     </div>
                   </div>
-
-                  <div className="text-sm font-semibold text-white truncate mb-1">
-                    {photo.caption}
-                  </div>
-                  <div className="text-[11px] text-neutral-400 font-mono truncate">
-                    {photo.location || photo.year || 'Timeless Memory'}
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </section>
       )}
@@ -237,93 +607,107 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
       {/* ======================================================== */}
       {/* 4. SECTION 4 — ALL IMAGES / MEMORY SEQUENCE             */}
       {/* ======================================================== */}
-      <section className="relative px-4">
+      <section id="sec-memories" className="relative px-4">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
-            <span className="text-xs font-mono tracking-[0.25em] uppercase text-[#E50914] font-semibold block mb-2">
-              ACT IV · THE COMPLETE ARCHIVE
+            <span
+              className="text-xs font-mono tracking-[0.25em] uppercase font-semibold block mb-2"
+              style={{ color: tokens.primary }}
+            >
+              ACT IV · {template === 'memories' ? 'CHRONICLES' : template === 'celebration' ? 'HIGHLIGHT REEL' : 'THE COMPLETE ARCHIVE'}
             </span>
-            <h2 className="font-cinzel text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-3">
-              THE MEMORY SEQUENCE
-            </h2>
-            <p className="text-xs sm:text-sm text-neutral-400 max-w-lg mx-auto leading-relaxed">
+            <SplitHeading
+              primaryPart={memoriesSplit.primary}
+              secondaryPart={memoriesSplit.secondary}
+              as="h2"
+              className={`text-3xl sm:text-4xl md:text-5xl font-bold mb-3 ${headingFont}`}
+            />
+            <p
+              className="text-xs sm:text-sm max-w-lg mx-auto leading-relaxed"
+              style={{ color: tokens.muted }}
+            >
               Every chapter, laughter, and wild adventure preserved in sequence ({photos.length} total photographs).
             </p>
 
             {storyNarrative && (
-              <div className="mt-4 max-w-xl mx-auto p-4 rounded-xl bg-[#141414]/90 border border-[#262626]">
-                <p className="text-xs sm:text-sm text-neutral-300 font-serif italic leading-relaxed">
+              <div
+                className="mt-4 max-w-xl mx-auto p-4 sm:p-5 rounded-2xl border shadow-lg"
+                style={{
+                  backgroundColor: tokens.surface,
+                  borderColor: borderStyle === 'none' ? 'transparent' : tokens.border,
+                }}
+              >
+                <p
+                  className={`text-xs sm:text-sm leading-relaxed ${bodyFont}`}
+                  style={{ color: tokens.body }}
+                >
                   "{storyNarrative}"
                 </p>
               </div>
             )}
           </div>
 
-          {/* Staggered Editorial Memory Timeline Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {photos.map((photo, index) => (
-              <div
-                key={photo.id}
-                onClick={() => setActiveMemoryIndex(index)}
-                className={`bg-[#111111] border rounded-2xl p-5 transition-all duration-300 group cursor-pointer ${
-                  activeMemoryIndex === index
-                    ? 'border-[#E50914] shadow-2xl shadow-[#E50914]/15'
-                    : 'border-[#242424] hover:border-neutral-500'
-                }`}
-              >
-                <div className="aspect-[16/10] rounded-xl overflow-hidden bg-black mb-4 relative">
-                  <AutoFitImage
-                    src={photo.previewUrl}
-                    alt={photo.caption}
-                    className="group-hover:scale-105 transition-transform duration-500"
-                  />
-                  <div className="absolute top-3 left-3 bg-black/80 px-2.5 py-1 rounded-md text-[11px] font-mono text-white border border-white/20">
-                    MEMORY #{String(index + 1).padStart(2, '0')}
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between text-xs text-neutral-400 font-mono">
-                    <span className="text-[#E50914]">{photo.year || 'TIMELINE'}</span>
-                    {photo.location && (
-                      <span className="flex items-center gap-1">
-                        <MapPin className="w-3 h-3 text-neutral-500" />
-                        {photo.location}
-                      </span>
-                    )}
-                  </div>
-                  <h3 className="font-cinzel text-base sm:text-lg font-bold text-white group-hover:text-[#E50914] transition-colors">
-                    {photo.caption}
-                  </h3>
-                </div>
-              </div>
-            ))}
-          </div>
+          {/* Active Photo Presentation Component */}
+          <PhotoPresentationView
+            photoStyle={photoStyle}
+            template={template}
+            photos={photos}
+            tokens={tokens}
+            headingFont={headingFont}
+            bodyFont={bodyFont}
+            heroFocus={heroFocus}
+            activeMemoryIndex={activeMemoryIndex}
+            onSelectMemory={setActiveMemoryIndex}
+            glowStyle={glowStyle}
+            borderStyle={borderStyle}
+          />
         </div>
       </section>
 
       {/* ======================================================== */}
       {/* 5. SECTION 5 — 3D PHOTO VAULT                           */}
       {/* ======================================================== */}
-      <section className="relative px-4 py-12 overflow-hidden bg-[#0A0A0A]/90 border-y border-[#202020] rounded-3xl">
+      <section
+        id="sec-vault"
+        className="relative px-4 py-14 overflow-hidden border-y rounded-3xl"
+        style={{
+          backgroundColor: tokens.surface,
+          borderColor: borderStyle === 'none' ? 'transparent' : tokens.border,
+        }}
+      >
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-10">
-            <span className="text-xs font-mono tracking-[0.25em] uppercase text-[#E50914] font-semibold block mb-2">
-              ACT V · THE DIGITAL SANCTUARY
+            <span
+              className="text-xs font-mono tracking-[0.25em] uppercase font-semibold block mb-2"
+              style={{ color: tokens.primary }}
+            >
+              ACT V · {template === 'memories' ? 'ARCHIVAL CAROUSEL' : template === 'elegance' ? 'SALON GALLERY' : 'THE DIGITAL SANCTUARY'}
             </span>
-            <h2 className="font-cinzel text-3xl sm:text-5xl font-black text-white mb-3">
-              THE 3D PHOTO VAULT
-            </h2>
-            <p className="text-xs sm:text-sm text-neutral-300 max-w-lg mx-auto leading-relaxed">
+            <SplitHeading
+              primaryPart={vaultSplit.primary}
+              secondaryPart={vaultSplit.secondary}
+              as="h2"
+              className={`text-3xl sm:text-5xl font-black mb-3 ${headingFont}`}
+            />
+            <p
+              className={`text-xs sm:text-sm max-w-lg mx-auto leading-relaxed ${bodyFont}`}
+              style={{ color: tokens.body }}
+            >
               {vaultIntro || 'First viewed as memories. Now preserved eternally in a rotating 3D archival vault.'}
             </p>
 
             <div className="flex items-center justify-center gap-3 mt-4">
               <button
+                type="button"
                 onClick={() => setIsVaultAutoSpinning(!isVaultAutoSpinning)}
-                className="px-3.5 py-1 rounded-full bg-[#181818] border border-[#2B2B2B] text-xs font-mono text-neutral-300 hover:text-white hover:border-[#E50914] transition-colors flex items-center gap-1.5 cursor-pointer"
+                className="px-4 py-1.5 rounded-full border text-xs font-mono transition-colors flex items-center gap-1.5 cursor-pointer"
+                style={{
+                  backgroundColor: tokens.surfaceHighlight,
+                  borderColor: tokens.border,
+                  color: tokens.secondary,
+                }}
               >
-                <RotateCw className="w-3 h-3 text-[#E50914]" />
+                <RotateCw className="w-3 h-3" style={{ color: tokens.primary }} />
                 <span>{isVaultAutoSpinning ? 'Pause Rotation' : 'Resume Rotation'}</span>
               </button>
             </div>
@@ -335,7 +719,12 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
             style={{ perspective: '1200px' }}
           >
             {/* Ambient center spotlight pedestal */}
-            <div className="absolute w-64 h-64 bg-[#E50914]/20 rounded-full blur-[90px] pointer-events-none" />
+            {glowStyle !== 'none' && (
+              <div
+                className="absolute w-72 h-72 rounded-full blur-[100px] pointer-events-none"
+                style={{ backgroundColor: tokens.glowStrong }}
+              />
+            )}
 
             <div
               className="relative w-48 sm:w-56 h-64 sm:h-72 transition-transform duration-100 ease-out"
@@ -346,29 +735,143 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
             >
               {photos.map((photo, idx) => {
                 const angle = (idx / totalVaultCards) * 360;
+
+                // 1. POLAROID 3D VAULT CARD
+                if (photoStyle === 'polaroid') {
+                  return (
+                    <div
+                      key={`vault-${photo.id}`}
+                      className="absolute inset-0 bg-[#FAF8F5] text-[#1c1917] p-2 pb-3.5 rounded-[3px] shadow-[0_20px_40px_rgba(0,0,0,0.85)] border border-[#e8e4dc] flex flex-col justify-between"
+                      style={{
+                        transform: `rotateY(${angle}deg) translateZ(${radius}px)`,
+                        backfaceVisibility: 'hidden',
+                      }}
+                    >
+                      <div className="w-full h-40 sm:h-48 overflow-hidden bg-black relative rounded-[2px] shadow-[inset_0_1px_3px_rgba(0,0,0,0.4)] border border-black/15">
+                        <AutoFitImage
+                          src={photo.previewUrl}
+                          alt={photo.caption}
+                          focalPoint={heroFocus as any}
+                        />
+                        <div className="absolute top-1.5 left-1.5 text-[8px] font-mono px-1.5 py-0.5 rounded bg-black/70 text-white/90">
+                          POLAROID #{idx + 1}
+                        </div>
+                      </div>
+                      <div className="pt-2 px-1">
+                        <div 
+                          className="text-[11px] font-serif italic font-bold text-[#1c1917] truncate leading-tight"
+                          style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+                        >
+                          {photo.caption}
+                        </div>
+                        <div className="text-[9px] font-mono text-[#78716c] uppercase tracking-wider mt-0.5">
+                          {photo.year || 'PERMANENT VAULT'}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // 2. FILM STRIP 3D VAULT CARD
+                if (photoStyle === 'film-strip') {
+                  return (
+                    <div
+                      key={`vault-${photo.id}`}
+                      className="absolute inset-0 bg-[#0B0B0B] border border-[#2d2d2d] shadow-[0_20px_40px_rgba(0,0,0,0.9)] p-1.5 pb-2 rounded-lg flex flex-col justify-between text-neutral-300"
+                      style={{
+                        transform: `rotateY(${angle}deg) translateZ(${radius}px)`,
+                        backfaceVisibility: 'hidden',
+                      }}
+                    >
+                      {/* Top micro sprockets */}
+                      <div className="h-2.5 bg-[#050505] px-2 flex items-center gap-2 overflow-hidden mb-1">
+                        {Array.from({ length: 8 }).map((_, h) => (
+                          <div key={`v-top-${h}`} className="w-2 h-1 rounded-[1px] bg-[#1a1a1a] border border-[#333] shrink-0" />
+                        ))}
+                      </div>
+
+                      <div className="w-full h-36 sm:h-44 overflow-hidden bg-black relative rounded-[2px]">
+                        <AutoFitImage
+                          src={photo.previewUrl}
+                          alt={photo.caption}
+                          focalPoint={heroFocus as any}
+                        />
+                        <div className="absolute top-1 left-1 text-[8px] font-mono px-1 py-0.5 rounded bg-black/80 text-white">
+                          ▸ 35MM #{idx + 1}A
+                        </div>
+                      </div>
+
+                      <div className="px-1 pt-1">
+                        <div className="text-[11px] font-bold text-white truncate">
+                          {photo.caption}
+                        </div>
+                        <div className="text-[8px] font-mono text-neutral-400">
+                          CELLULOID PRESERVED
+                        </div>
+                      </div>
+
+                      {/* Bottom micro sprockets */}
+                      <div className="h-2.5 bg-[#050505] px-2 flex items-center gap-2 overflow-hidden mt-1">
+                        {Array.from({ length: 8 }).map((_, h) => (
+                          <div key={`v-bot-${h}`} className="w-2 h-1 rounded-[1px] bg-[#1a1a1a] border border-[#333] shrink-0" />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                }
+
+                // 3. FULLSCREEN / DEFAULT 3D VAULT CARD
                 return (
                   <div
                     key={`vault-${photo.id}`}
-                    className="absolute inset-0 rounded-2xl overflow-hidden border border-[#3A1414] bg-[#140808] shadow-2xl p-2 flex flex-col justify-between"
+                    className={`absolute inset-0 border shadow-2xl p-2 flex flex-col justify-between ${
+                      photoStyle === 'fullscreen'
+                        ? 'rounded-2xl border-2'
+                        : template === 'memories'
+                        ? 'rounded-3xl'
+                        : template === 'elegance'
+                        ? 'rounded-none border-white/20'
+                        : 'rounded-2xl'
+                    }`}
                     style={{
                       transform: `rotateY(${angle}deg) translateZ(${radius}px)`,
                       backfaceVisibility: 'hidden',
+                      backgroundColor: tokens.surface,
+                      borderColor: borderStyle === 'none' ? 'transparent' : tokens.border,
                     }}
                   >
-                    <div className="w-full h-44 sm:h-52 rounded-xl overflow-hidden bg-black relative">
+                    <div
+                      className={`w-full h-44 sm:h-52 overflow-hidden bg-black relative ${
+                        template === 'memories' ? 'rounded-2xl' : template === 'elegance' ? 'rounded-none' : 'rounded-xl'
+                      }`}
+                    >
                       <AutoFitImage
                         src={photo.previewUrl}
                         alt={photo.caption}
+                        focalPoint={heroFocus as any}
                       />
-                      <div className="absolute top-1.5 left-1.5 bg-black/85 text-[9px] font-mono px-1.5 py-0.5 rounded text-white border border-white/10">
+                      <div
+                        className="absolute top-1.5 left-1.5 text-[9px] font-mono px-1.5 py-0.5 rounded border"
+                        style={{
+                          backgroundColor: 'rgba(0,0,0,0.85)',
+                          borderColor: tokens.border,
+                          color: tokens.secondary,
+                        }}
+                      >
                         VAULT #{idx + 1}
                       </div>
                     </div>
                     <div className="p-1">
-                      <div className="text-[11px] font-bold text-white truncate">
+                      <div
+                        className="text-[11px] font-bold truncate"
+                        style={{ color: tokens.secondary }}
+                      >
                         {photo.caption}
                       </div>
-                      <div className="text-[9px] text-[#E50914] font-mono">
+                      <div
+                        className="text-[9px] font-mono"
+                        style={{ color: tokens.primary }}
+                      >
                         ETERNALLY PRESERVED
                       </div>
                     </div>
@@ -382,33 +885,64 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
 
       {/* ======================================================== */}
       {/* 6. SECTION 6 — OPTIONAL SURPRISE IMAGE                  */}
-      {/* (Only rendered if surprisePhoto is provided)             */}
       {/* ======================================================== */}
       {surprisePhoto && (
-        <section className="relative px-4">
+        <section id="sec-surprise" className="relative px-4">
           <div className="max-w-4xl mx-auto">
-            <div className="bg-[#120808] border border-[#3D1414] rounded-3xl p-8 sm:p-14 text-center relative overflow-hidden shadow-2xl">
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-[#E50914]/20 rounded-full blur-[100px] pointer-events-none" />
+            <div
+              className={`border p-8 sm:p-14 text-center relative overflow-hidden shadow-2xl ${
+                template === 'memories' ? 'rounded-3xl' : template === 'elegance' ? 'rounded-none border-white/20' : 'rounded-3xl'
+              }`}
+              style={{
+                backgroundColor: tokens.surface,
+                borderColor: borderStyle === 'none' ? 'transparent' : tokens.borderHighlight,
+              }}
+            >
+              {glowStyle !== 'none' && (
+                <div
+                  className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full blur-[100px] pointer-events-none"
+                  style={{ backgroundColor: tokens.glowStrong }}
+                />
+              )}
 
               <div className="relative z-10 space-y-5">
-                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#E50914]/20 border border-[#E50914]/40 text-[#FF4D4D] text-xs font-mono uppercase tracking-widest">
+                <div
+                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs font-mono uppercase tracking-widest"
+                  style={{
+                    backgroundColor: tokens.surfaceHighlight,
+                    borderColor: tokens.borderHighlight,
+                    color: tokens.primary,
+                  }}
+                >
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>ACT VI · CONFIDENTIAL REVEAL</span>
                 </div>
 
-                <h2 className="font-cinzel text-3xl sm:text-5xl font-black text-white">
-                  A SPECIAL SURPRISE MOMENT
-                </h2>
+                <SplitHeading
+                  primaryPart={surpriseSplit.primary}
+                  secondaryPart={surpriseSplit.secondary}
+                  as="h2"
+                  className={`text-3xl sm:text-5xl font-black ${headingFont}`}
+                />
 
-                <p className="text-xs sm:text-sm text-neutral-300 max-w-md mx-auto leading-relaxed">
+                <p
+                  className={`text-xs sm:text-sm max-w-md mx-auto leading-relaxed ${bodyFont}`}
+                  style={{ color: tokens.body }}
+                >
                   {surpriseText || 'A secluded memory kept hidden until this very moment.'}
                 </p>
 
                 {!surpriseRevealed ? (
                   <div className="py-6">
                     <button
+                      type="button"
                       onClick={() => setSurpriseRevealed(true)}
-                      className="px-8 py-4 rounded-xl bg-[#E50914] hover:bg-[#c90711] text-white text-xs sm:text-sm font-bold tracking-[0.2em] uppercase transition-all shadow-xl shadow-[#E50914]/30 hover:scale-105 cursor-pointer inline-flex items-center gap-2"
+                      className="px-8 py-4 rounded-xl text-xs sm:text-sm font-bold tracking-[0.2em] uppercase transition-all shadow-xl hover:scale-105 cursor-pointer inline-flex items-center gap-2"
+                      style={{
+                        backgroundColor: tokens.primary,
+                        color: '#FFFFFF',
+                        boxShadow: glowStyle !== 'none' ? `0 12px 28px ${tokens.glowStrong}` : undefined,
+                      }}
                     >
                       <Unlock className="w-4 h-4" />
                       <span>UNLOCK SURPRISE MEMORY</span>
@@ -416,22 +950,110 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
                   </div>
                 ) : (
                   <div className="animate-fade-in pt-4 max-w-2xl mx-auto space-y-4">
-                    <div className="relative aspect-[16/9] w-full rounded-2xl overflow-hidden border border-[#E50914] shadow-2xl bg-black">
-                      <AutoFitImage
-                        src={surprisePhoto.previewUrl}
-                        alt={surprisePhoto.caption}
-                        enableBackdropGlow={true}
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
-                      <div className="absolute bottom-4 left-4 right-4 text-left">
-                        <span className="text-[10px] font-mono text-[#E50914] uppercase tracking-wider">
-                          UNLOCKED SURPRISE
-                        </span>
-                        <h4 className="font-cinzel text-lg sm:text-xl font-bold text-white">
-                          {surprisePhoto.caption}
-                        </h4>
+                    {photoStyle === 'polaroid' ? (
+                      <div className="relative max-w-md mx-auto py-2">
+                        {/* Tape accent */}
+                        <div 
+                          className="absolute -top-2 left-1/2 -translate-x-1/2 w-20 h-5 bg-[#eae5d8]/80 border border-black/10 shadow-xs z-10 rounded-[1px] pointer-events-none transform -rotate-1"
+                          style={{ clipPath: 'polygon(0 0, 100% 4%, 96% 100%, 4% 96%)' }}
+                        />
+                        <div className="bg-[#FAF8F5] text-[#1c1917] p-4 pb-8 rounded-[3px] shadow-[0_20px_40px_rgba(0,0,0,0.85)] border border-[#e8e4dc]">
+                          <div className="aspect-[4/3] overflow-hidden bg-black mb-3 relative rounded-[2px] shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)] border border-black/20">
+                            <AutoFitImage
+                              src={surprisePhoto.previewUrl}
+                              alt={surprisePhoto.caption}
+                              focalPoint={heroFocus as any}
+                            />
+                            <div className="absolute top-2 left-2 text-[9px] font-mono px-2 py-0.5 rounded bg-black/70 text-white/90">
+                              SURPRISE REVEALED
+                            </div>
+                          </div>
+                          <div className="text-left space-y-1">
+                            <div className="text-[10px] font-mono text-[#78716c] uppercase tracking-wider">
+                              EXCLUSIVE MEMORY
+                            </div>
+                            <h4 
+                              className="text-lg sm:text-xl font-serif italic font-bold text-[#1c1917]"
+                              style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+                            >
+                              {surprisePhoto.caption}
+                            </h4>
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    ) : photoStyle === 'film-strip' ? (
+                      <div className="bg-[#090909] border border-[#282828] rounded-xl overflow-hidden shadow-2xl">
+                        <div className="h-6 bg-[#0E0E0E] border-b border-[#222222] px-3 flex items-center justify-between overflow-hidden">
+                          <div className="flex items-center gap-3">
+                            {Array.from({ length: 14 }).map((_, i) => (
+                              <div key={`s-top-${i}`} className="w-3 h-1.5 rounded-[1px] bg-[#1a1a1a] border border-[#333] shrink-0" />
+                            ))}
+                          </div>
+                          <span className="text-[9px] font-mono text-neutral-400 uppercase">
+                            70MM VAULT · SPECIAL REVEAL
+                          </span>
+                        </div>
+                        <div className="relative aspect-[16/9] w-full overflow-hidden bg-black">
+                          <AutoFitImage
+                            src={surprisePhoto.previewUrl}
+                            alt={surprisePhoto.caption}
+                            focalPoint={heroFocus as any}
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+                          <div className="absolute bottom-4 left-4 right-4 text-left">
+                            <span
+                              className="text-[10px] font-mono uppercase tracking-wider block"
+                              style={{ color: tokens.primary }}
+                            >
+                              UNLOCKED SURPRISE
+                            </span>
+                            <h4
+                              className={`text-lg sm:text-xl font-bold ${headingFont}`}
+                              style={{ color: tokens.secondary }}
+                            >
+                              {surprisePhoto.caption}
+                            </h4>
+                          </div>
+                        </div>
+                        <div className="h-6 bg-[#0E0E0E] border-t border-[#222222] px-3 flex items-center justify-between overflow-hidden">
+                          <span className="text-[9px] font-mono text-neutral-500 uppercase">
+                            SECRET MASTER FRAME
+                          </span>
+                          <div className="flex items-center gap-3">
+                            {Array.from({ length: 14 }).map((_, i) => (
+                              <div key={`s-bot-${i}`} className="w-3 h-1.5 rounded-[1px] bg-[#1a1a1a] border border-[#333] shrink-0" />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        className="relative aspect-[16/9] w-full rounded-2xl overflow-hidden border shadow-2xl bg-black"
+                        style={{ borderColor: tokens.primary }}
+                      >
+                        <AutoFitImage
+                          src={surprisePhoto.previewUrl}
+                          alt={surprisePhoto.caption}
+                          focalPoint={heroFocus as any}
+                          enableBackdropGlow={true}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+                        <div className="absolute bottom-4 left-4 right-4 text-left">
+                          <span
+                            className="text-[10px] font-mono uppercase tracking-wider block"
+                            style={{ color: tokens.primary }}
+                          >
+                            UNLOCKED SURPRISE
+                          </span>
+                          <h4
+                            className={`text-lg sm:text-xl font-bold ${headingFont}`}
+                            style={{ color: tokens.secondary }}
+                          >
+                            {surprisePhoto.caption}
+                          </h4>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -441,38 +1063,22 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
       )}
 
       {/* ======================================================== */}
-      {/* 7. SECTION 7 — FINAL BIRTHDAY WISH                      */}
+      {/* 7. SECTION 7 — REFERENCE-INSPIRED FINAL CINEMATIC REVEAL */}
       {/* ======================================================== */}
-      <section className="relative text-center py-20 px-4">
-        <div className="max-w-3xl mx-auto space-y-6">
-          <div className="inline-flex items-center gap-2 text-xs font-semibold tracking-[0.2em] uppercase text-[#E50914]">
-            <Heart className="w-4 h-4 fill-[#E50914]" />
-            <span>ACT VII · EPILOGUE</span>
-          </div>
-
-          <h2 className="font-cinzel text-4xl sm:text-6xl font-black text-white tracking-tight uppercase leading-tight [text-wrap:balance]">
-            HAPPY BIRTHDAY, <br />
-            <span className="text-[#E50914]">{recipientName}</span>
-          </h2>
-
-          <div className="w-16 h-px bg-neutral-600 mx-auto" />
-
-          <p className="text-base sm:text-lg text-neutral-200 font-serif italic max-w-xl mx-auto leading-relaxed [text-wrap:balance]">
-            "{finalMessage}"
-          </p>
-
-          {senderName && (
-            <div className="pt-4 text-xs font-mono tracking-widest uppercase text-neutral-400">
-              WITH ALL OUR LOVE · {senderName}
-            </div>
-          )}
-
-          <div className="pt-6">
-            <span className="text-[11px] font-mono uppercase tracking-[0.3em] text-[#E50914]">
-              THE END · A 24-HOUR LIFETIME MEMORY
-            </span>
-          </div>
-        </div>
+      <section id="sec-finale" className="relative w-full">
+        <FinalCinematicReveal
+          recipientName={recipientName}
+          surprisePhoto={surprisePhoto}
+          surpriseText={surpriseText}
+          finalMessage={finalMessage}
+          senderName={senderName}
+          template={template}
+          tokens={tokens}
+          headingFont={headingFont}
+          bodyFont={bodyFont}
+          heroFocus={heroFocus}
+          glowStyle={glowStyle}
+        />
       </section>
     </div>
   );

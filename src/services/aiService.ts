@@ -28,6 +28,7 @@ export interface GenerateBirthdayContentRequest {
   creatorMessage?: string;
   photoCount: number;
   hasSurprisePhoto: boolean;
+  template?: string;
 }
 
 export interface RegenerateSectionRequest {
@@ -39,6 +40,7 @@ export interface RegenerateSectionRequest {
   creatorMessage?: string;
   senderName?: string;
   currentValue?: string;
+  template?: string;
 }
 
 /**

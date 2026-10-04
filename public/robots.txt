@@ -11,4 +11,4 @@ Disallow: /create/
 Disallow: /studio/
 Disallow: /preview/
 
-Sitemap: https://memoriesbuilder.com/sitemap.xml
+Sitemap: https://memories-builder.vercel.app/sitemap.xml

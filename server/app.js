@@ -527,7 +527,7 @@ Disallow: /create/
 Disallow: /studio/
 Disallow: /preview/
 
-Sitemap: https://memoriesbuilder.com/sitemap.xml
+Sitemap: https://memories-builder.vercel.app/sitemap.xml
 `);
 });
 apiRouter.get("/sitemap.xml", (req, res) => {
@@ -535,7 +535,7 @@ apiRouter.get("/sitemap.xml", (req, res) => {
   res.send(`<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://memoriesbuilder.com/</loc>
+    <loc>https://memories-builder.vercel.app/</loc>
     <lastmod>2026-10-03</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
@@ -725,6 +725,12 @@ apiRouter.post("/publish", async (req, res) => {
     const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1e3).toISOString();
     const snapshot = {
       experienceId,
+      template: draft.template || "cinema",
+      theme: {
+        background: draft.theme?.background || "#080808",
+        primary: draft.theme?.primary || "#E50914",
+        secondary: draft.theme?.secondary || "#FFFFFF"
+      },
       recipientName: draft.recipientName.trim(),
       relationship: draft.relationship,
       customRelationship: draft.customRelationship,
@@ -928,8 +934,16 @@ var handleGenerateBirthdayContent = async (req, res) => {
     senderName,
     creatorMessage,
     photoCount = 3,
-    hasSurprisePhoto = false
+    hasSurprisePhoto = false,
+    template = "cinema"
   } = req.body || {};
+  const templateTones = {
+    cinema: "cinematic, dramatic, emotionally powerful, movie-poster theater premiere tone",
+    memories: "warm, intimate, nostalgic, deeply personal photographic memoir tone",
+    celebration: "joyful, energetic, exciting, premium celebratory birthday night tone",
+    elegance: "refined, timeless, sophisticated, luxury editorial magazine tone"
+  };
+  const activeTone = templateTones[template] || templateTones.cinema;
   const actualRel = relationship === "Other" ? customRelationship : relationship;
   const aiClient = getAiClient();
   if (!aiClient) {
@@ -943,6 +957,8 @@ var handleGenerateBirthdayContent = async (req, res) => {
   try {
     const prompt = `
 You are the master cinematic storyteller and narrative director for "Itzfizz Celebrations" \u2014 an ultra-premium, deeply moving personalized birthday tribute platform.
+
+Aesthetic Direction: ${activeTone}.
 
 Craft an emotionally captivating, cinematic 7-act birthday tribute script for:
 - Recipient Name: ${recipientName}

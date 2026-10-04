@@ -7,12 +7,57 @@ export type ParticleShape =
   | 'balloon' 
   | 'galaxy';
 
+export type ExperienceTemplate = 'cinema' | 'memories' | 'celebration' | 'elegance';
+
+export interface ExperienceTheme {
+  background: string;
+  primary: string;
+  secondary: string;
+}
+
+export type ExperienceMood = 'emotional' | 'cinematic' | 'energetic' | 'elegant' | 'fun';
+export type AccentIntensity = 'subtle' | 'balanced' | 'bold';
+export type GlowStyle = 'none' | 'subtle' | 'cinematic';
+export type BorderStyle = 'none' | 'thin' | 'cinematic';
+export type HeadingStyle = 'classic-serif' | 'modern-editorial' | 'bold-cinematic' | 'luxury';
+export type BodyStyle = 'clean' | 'editorial' | 'minimal';
+export type MotionEnergy = 'subtle' | 'cinematic' | 'epic';
+export type ParticleAtmosphere = 'minimal' | 'cinematic' | 'intense';
+export type PhotoPresentationStyle = 'cinematic' | 'editorial' | 'film-strip' | 'polaroid' | 'fullscreen';
+export type HeroFocus = 'auto' | 'center' | 'top' | 'bottom' | 'left' | 'right';
+export type OccasionType = 'birthday' | 'milestone' | '18th' | '21st' | '25th' | '30th' | '40th' | '50th' | 'other';
+
+export interface CustomSectionTitles {
+  innerCircle?: string;
+  memories?: string;
+  vault?: string;
+  surprise?: string;
+}
+
+export interface ExperienceCustomization {
+  mood: ExperienceMood;
+  accentIntensity: AccentIntensity;
+  glowStyle: GlowStyle;
+  borderStyle: BorderStyle;
+  headingStyle: HeadingStyle;
+  bodyStyle: BodyStyle;
+  motionEnergy: MotionEnergy;
+  particleAtmosphere: ParticleAtmosphere;
+  photoStyle: PhotoPresentationStyle;
+  heroFocus: HeroFocus;
+  occasion: OccasionType;
+  customOccasion?: string;
+  sectionTitles?: CustomSectionTitles;
+}
+
 export type CreatorStep = 
+  | 'template'
   | 'details' 
   | 'photos' 
   | 'curate' 
   | 'music' 
   | 'customize' 
+  | 'theme'
   | 'review'
   | 'preview'
   | 'published';
@@ -27,6 +72,9 @@ export type PublishStatus =
 
 export interface PublishedExperienceSnapshot {
   readonly experienceId: string;
+  readonly template?: ExperienceTemplate;
+  readonly theme?: ExperienceTheme;
+  readonly customization?: ExperienceCustomization;
   readonly recipientName: string;
   readonly relationship?: string;
   readonly customRelationship?: string;
@@ -72,6 +120,9 @@ export interface UploadedMusic {
 }
 
 export interface BirthdayExperienceDraft {
+  template: ExperienceTemplate;
+  theme: ExperienceTheme;
+  customization: ExperienceCustomization;
   recipientName: string;
   relationship: string;
   customRelationship?: string;
@@ -105,6 +156,9 @@ export interface PhotoMemory {
 }
 
 export interface BirthdayExperienceData {
+  template?: ExperienceTemplate;
+  theme?: ExperienceTheme;
+  customization?: ExperienceCustomization;
   recipientName: string;
   milestoneAge: number;
   date: string;

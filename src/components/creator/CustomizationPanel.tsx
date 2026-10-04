@@ -74,6 +74,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
         creatorMessage: draft.birthdayMessage,
         photoCount: draft.photos.length,
         hasSurprisePhoto: !!draft.surprisePhoto,
+        template: draft.template,
       });
 
       // Update fields while honoring creator-authored messages
@@ -120,6 +121,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
         creatorMessage: draft.birthdayMessage,
         senderName: draft.senderName,
         currentValue,
+        template: draft.template,
       });
 
       if (section === 'openingWish') onUpdate({ birthdayMessage: newText });
@@ -154,7 +156,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
       {/* Step Header */}
       <div className="text-center mb-10">
         <span className="text-xs font-mono tracking-[0.25em] uppercase text-[#E50914] font-semibold">
-          STEP 05 OF 06
+          STEP 06 OF 08 · AI STORY
         </span>
         <h2 className="font-cinzel text-3xl sm:text-4xl font-bold text-white mt-1 mb-2 [text-wrap:balance]">
           AI CREATIVE DIRECTOR
@@ -492,7 +494,7 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
             onClick={onNext}
             className="w-full sm:w-auto px-8 py-3.5 text-xs sm:text-sm font-bold uppercase tracking-wider text-white bg-[#E50914] hover:bg-[#c90711] rounded-xl transition-all shadow-xl shadow-[#E50914]/30 hover:shadow-[#E50914]/50 cursor-pointer flex items-center justify-center gap-2 hover:scale-[1.02]"
           >
-            <span>Proceed to Final Review</span>
+            <span>Proceed to Customise Colours</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>

@@ -75,7 +75,7 @@ export const StoryCurationStep: React.FC<StoryCurationStepProps> = ({
       {/* Step Header */}
       <div className="text-center">
         <span className="text-xs font-mono tracking-[0.25em] uppercase text-[#E50914] font-semibold">
-          STEP 03 OF 06
+          STEP 04 OF 08 · CURATE
         </span>
         <h2 className="font-cinzel text-3xl sm:text-4xl font-bold text-white mt-1 mb-2 [text-wrap:balance]">
           CURATE THE CINEMATIC STORY

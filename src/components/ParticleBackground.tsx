@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { ParticleShape } from '../types';
+import { ParticleShape, ExperienceTemplate, ParticleAtmosphere, MotionEnergy } from '../types';
+import { hexToRgb } from '../utils/themeTokens';
 
 interface Particle {
   // Current spatial coordinates
@@ -43,6 +44,10 @@ interface ParticleBackgroundProps {
   className?: string;
   intensity?: 'subtle' | 'normal' | 'vibrant';
   interactive?: boolean;
+  template?: ExperienceTemplate;
+  primaryColor?: string;
+  particleAtmosphere?: ParticleAtmosphere;
+  motionEnergy?: MotionEnergy;
 }
 
 export const ParticleBackground: React.FC<ParticleBackgroundProps> = ({
@@ -50,6 +55,10 @@ export const ParticleBackground: React.FC<ParticleBackgroundProps> = ({
   className = '',
   intensity = 'normal',
   interactive = true,
+  template = 'cinema',
+  primaryColor = '#E50914',
+  particleAtmosphere,
+  motionEnergy,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const particlesRef = useRef<Particle[]>([]);
@@ -107,10 +116,20 @@ export const ParticleBackground: React.FC<ParticleBackgroundProps> = ({
       assignShapeTargets(particlesRef.current, currentShapeRef.current, width, height);
     };
 
-    // Adaptive particle count based on viewport capability:
-    // Mobile (<768px): 180 | Tablet (768-1024px): 340 | Desktop (>1024px): 560
+    // Adaptive particle count based on viewport capability, template personality, and atmosphere setting:
     const screenWidth = window.innerWidth;
-    const particleCount = screenWidth < 768 ? 180 : screenWidth < 1024 ? 340 : 560;
+    const baseCount = screenWidth < 768 ? 180 : screenWidth < 1024 ? 340 : 560;
+    const tplMultiplier = 
+      template === 'memories' ? 0.6 : 
+      template === 'celebration' ? 1.25 : 
+      template === 'elegance' ? 0.4 : 1.0;
+    const atmMultiplier =
+      particleAtmosphere === 'minimal' ? 0.45 :
+      particleAtmosphere === 'intense' ? 1.45 : 1.0;
+    const particleCount = Math.round(baseCount * tplMultiplier * atmMultiplier);
+
+    const prim = hexToRgb(primaryColor || '#E50914');
+    const primaryRgbStr = `${prim.r}, ${prim.g}, ${prim.b}`;
 
     // Generate balanced layered particle field with 3 distinct depth tiers
     const newParticles: Particle[] = [];
@@ -132,26 +151,27 @@ export const ParticleBackground: React.FC<ParticleBackgroundProps> = ({
         z = 1.86 + Math.random() * 1.14; // 1.86 - 3.00
       }
 
-      // Color classification (Red accent highlights, warm cinematic white, graphite depth)
+      // Color classification (Primary accent highlights, warm cinematic white, graphite depth)
       const colorRoll = Math.random();
       let colorType: 'white' | 'red' | 'gray' = 'white';
       let colorRgb = '255, 255, 255';
       let baseAlpha = 0.50;
 
-      if (colorRoll < 0.30) {
-        // Red cinematic ember highlight (prominent, warm, glowing)
+      const accentThreshold = template === 'celebration' ? 0.42 : template === 'memories' ? 0.25 : template === 'elegance' ? 0.22 : 0.30;
+      if (colorRoll < accentThreshold) {
+        // Primary accent highlight (prominent, glowing)
         colorType = 'red';
-        colorRgb = '229, 9, 20';
+        colorRgb = primaryRgbStr;
         baseAlpha = tier === 'foreground' ? 0.92 : tier === 'midground' ? 0.72 : 0.50;
-      } else if (colorRoll < 0.54) {
+      } else if (colorRoll < 0.55) {
         // Soft graphite / warm silver-gray (enhances deep spatial illusion)
         colorType = 'gray';
-        colorRgb = '185, 185, 195';
+        colorRgb = template === 'memories' ? '195, 185, 175' : '185, 185, 195';
         baseAlpha = tier === 'foreground' ? 0.70 : tier === 'midground' ? 0.50 : 0.35;
       } else {
-        // Pristine white sparkling star / ember
+        // Pristine white sparkling star / warm mote
         colorType = 'white';
-        colorRgb = '255, 255, 255';
+        colorRgb = template === 'memories' ? '255, 250, 240' : '255, 255, 255';
         baseAlpha = tier === 'foreground' ? 0.95 : tier === 'midground' ? 0.76 : 0.48;
       }
 
@@ -276,7 +296,14 @@ export const ParticleBackground: React.FC<ParticleBackgroundProps> = ({
       const len = particles.length;
       const isAbstract = currentShapeRef.current === 'abstract';
       const intensityMul = intensity === 'vibrant' ? 1.25 : intensity === 'subtle' ? 0.75 : 1.0;
-      const motionScale = prefersReducedMotionRef.current ? 0.2 : 1.0;
+      const templateSpeed =
+        template === 'celebration' ? 1.4 :
+        template === 'memories' ? 0.6 :
+        template === 'elegance' ? 0.45 : 1.0;
+      const energyMultiplier =
+        motionEnergy === 'epic' ? 1.5 :
+        motionEnergy === 'subtle' ? 0.6 : 1.0;
+      const motionScale = (prefersReducedMotionRef.current ? 0.2 : 1.0) * templateSpeed * energyMultiplier;
 
       for (let i = 0; i < len; i++) {
         const p = particles[i];
