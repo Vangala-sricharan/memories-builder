@@ -20,8 +20,10 @@ import {
   CheckCircle2,
   Sliders,
   FileText,
-  Users
+  Users,
+  Film
 } from 'lucide-react';
+import { CinematicExtrasPanel } from './CinematicExtrasPanel';
 
 interface CustomizationPanelProps {
   draft: BirthdayExperienceDraft;
@@ -467,6 +469,22 @@ export const CustomizationPanel: React.FC<CustomizationPanelProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Cinematic Extras (V1.5) Panel */}
+      <CinematicExtrasPanel
+        cinematicExtras={draft.cinematicExtras}
+        photos={draft.photos}
+        recipientName={draft.recipientName}
+        relationship={draft.relationship}
+        hasSurprisePhoto={!!draft.surprisePhoto}
+        hasMusic={!!draft.music}
+        template={draft.template}
+        onUpdate={(cinematicExtras) => onUpdate({ cinematicExtras })}
+        onUpdatePhotoCaption={(photoId, caption) => {
+          const updatedPhotos = draft.photos.map((p) => p.id === photoId ? { ...p, caption } : p);
+          onUpdate({ photos: updatedPhotos });
+        }}
+      />
 
       {/* Action Controls */}
       <div className="mt-10 pt-6 border-t border-[#242424] flex flex-col sm:flex-row items-center justify-between gap-4">

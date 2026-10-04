@@ -442,6 +442,7 @@ apiRouter.post('/publish', async (req, res) => {
       vaultIntro: draft.vaultIntro,
       surpriseText: draft.surpriseText,
       particleIntensity: draft.particleIntensity || 'normal',
+      cinematicExtras: draft.cinematicExtras || undefined,
       publishedAt,
       expiresAt,
       status: 'PUBLISHED',

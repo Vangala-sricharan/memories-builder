@@ -168,6 +168,7 @@ export async function fetchPublishedExperience(experienceId: string): Promise<Pu
         vaultIntro: data.vaultIntro,
         surpriseText: data.surpriseText,
         particleIntensity: data.particleIntensity || 'normal',
+        cinematicExtras: data.cinematicExtras || undefined,
         publishedAt: data.publishedAt,
         expiresAt: data.expiresAt,
         status: 'PUBLISHED',

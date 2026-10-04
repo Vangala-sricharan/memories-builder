@@ -4,13 +4,22 @@ import {
   UploadedMusic, 
   ExperienceTemplate, 
   ExperienceTheme,
-  ExperienceCustomization
+  ExperienceCustomization,
+  CinematicExtras
 } from '../../types';
 import { AutoFitImage } from '../common/AutoFitImage';
 import { PhotoPresentationView } from './photo-presentations/PhotoPresentationView';
 import { HeroPhotoFrame } from './photo-presentations/SinglePhotoPresentationFrames';
 import { FinalCinematicReveal } from './FinalCinematicReveal';
 import { VerticalProgressIndicator, SectionProgressItem } from './VerticalProgressIndicator';
+import { CinematicChapterCard } from './CinematicChapterCard';
+import { MemorySpotlightView } from './MemorySpotlightView';
+import { SecretRevealView } from './SecretRevealView';
+import { SurpriseLockView } from './SurpriseLockView';
+import { HiddenMessageTrigger } from './HiddenMessageTrigger';
+import { EmotionalReactionView } from './EmotionalReactionView';
+import { ReplayButton } from './ReplayButton';
+import { EasterEggModal } from '../common/EasterEggModal';
 import { 
   TEMPLATES, 
   deriveThemeTokens, 
@@ -34,6 +43,7 @@ interface BirthdayStoryExperienceProps {
   template?: ExperienceTemplate;
   theme?: ExperienceTheme;
   customization?: Partial<ExperienceCustomization>;
+  cinematicExtras?: CinematicExtras;
   recipientName: string;
   birthdayMessage?: string;
   tagline?: string;
@@ -56,6 +66,7 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
   template = 'cinema',
   theme,
   customization,
+  cinematicExtras,
   recipientName = 'Alex',
   birthdayMessage = 'Happy birthday to someone who makes every year richer, brighter, and completely unforgettable.',
   tagline = 'A Cinematic Birthday Story',
@@ -173,15 +184,66 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
     };
   }, [prefersReducedMotion]);
 
+  // Cinematic Extras configurations & state
+  const chapters = cinematicExtras?.chapters || {
+    chapter1: 'THE BEGINNING',
+    chapterTwo: 'THE MEMORIES',
+    chapter3: 'THE PEOPLE',
+    chapter4: 'THE VAULT',
+    chapter5: 'THE SURPRISE',
+    chapter6: 'FINALE',
+  };
+  const showChapters = cinematicExtras?.chapterTitlesEnabled !== false;
+
+  // Spotlight photo (Feature 4)
+  const spotlightPhoto = cinematicExtras?.memorySpotlightEnabled
+    ? photos.find((p) => cinematicExtras.spotlightPhotoIds?.includes(p.id)) || photos[Math.min(1, photos.length - 1)]
+    : null;
+
+  // Secret photo (Feature 1)
+  const secretPhoto = cinematicExtras?.secretRevealEnabled
+    ? photos.find((p) => p.id === cinematicExtras.secretPhotoId) || photos[Math.max(0, photos.length - 1)]
+    : null;
+
+  // Surprise Lock state (Feature 5)
+  const showSurpriseLock = cinematicExtras?.surpriseLockEnabled !== false && !!surprisePhoto;
+
+  // Easter Egg state (Feature 10)
+  const [easterEggOpen, setEasterEggOpen] = useState(false);
+  const [brandClickCount, setBrandClickCount] = useState(0);
+
+  const handleBrandClick = () => {
+    if (cinematicExtras?.easterEggEnabled === false) return;
+    setBrandClickCount((prev) => {
+      const next = prev + 1;
+      if (next >= 3) {
+        setEasterEggOpen(true);
+        return 0;
+      }
+      setTimeout(() => setBrandClickCount(0), 2000);
+      return next;
+    });
+  };
+
+  // Replay handler (Feature 7)
+  const handleReplay = () => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    setSurpriseRevealed(false);
+    setActiveMemoryIndex(0);
+  };
+
   // Section list definition for vertical progress indicator
   const sectionList: SectionProgressItem[] = [
     { id: 'sec-opening', name: 'OPENING', act: 'ACT I' },
     { id: 'sec-hero', name: 'SPOTLIGHT', act: 'ACT II' },
-    ...(innerCirclePhotos.length > 0 ? [{ id: 'sec-circle', name: 'CIRCLE', act: 'ACT III' }] : []),
-    { id: 'sec-memories', name: 'MEMORIES', act: 'ACT IV' },
+    { id: 'sec-memories', name: 'MEMORIES', act: 'ACT III' },
+    ...(innerCirclePhotos.length > 0 ? [{ id: 'sec-circle', name: 'PEOPLE', act: 'ACT IV' }] : []),
     { id: 'sec-vault', name: '3D VAULT', act: 'ACT V' },
-    ...(surprisePhoto ? [{ id: 'sec-surprise', name: 'SURPRISE', act: 'ACT VI' }] : []),
-    { id: 'sec-finale', name: 'FINALE', act: surprisePhoto ? 'ACT VII' : 'ACT VI' },
+    ...(secretPhoto ? [{ id: 'sec-secret', name: 'SECRET', act: 'ACT VI' }] : []),
+    ...(surprisePhoto ? [{ id: 'sec-surprise', name: 'SURPRISE', act: 'ACT VII' }] : []),
+    { id: 'sec-finale', name: 'FINALE', act: 'EPILOGUE' },
   ];
 
   // Scroll to section handler
@@ -316,13 +378,15 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
         )}
 
         <div className="max-w-3xl mx-auto space-y-6">
-          {/* Act Badge & Occasion */}
+          {/* Act Badge & Occasion (Triple-click for Easter egg) */}
           <div
-            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border transition-colors"
+            onClick={handleBrandClick}
+            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border transition-all cursor-pointer hover:scale-105"
             style={{
               backgroundColor: tokens.surface,
               borderColor: tokens.border,
             }}
+            title="Memories Builder Premiere"
           >
             <span
               className="w-2 h-2 rounded-full animate-ping"
@@ -397,6 +461,17 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
       {/* ======================================================== */}
       {/* 2. SECTION 2 — HERO IMAGE                               */}
       {/* ======================================================== */}
+      {showChapters && heroPhoto && (
+        <CinematicChapterCard
+          number="01 / 06"
+          act="ACT I"
+          title={chapters.chapter1 || 'THE BEGINNING'}
+          template={template}
+          tokens={tokens}
+          headingFont={headingFont}
+        />
+      )}
+
       {heroPhoto && (
         <section id="sec-hero" className="relative px-4">
           <div className="max-w-5xl mx-auto">
@@ -431,7 +506,109 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
       )}
 
       {/* ======================================================== */}
-      {/* 3. SECTION 3 — INNER CIRCLE                             */}
+      {/* CHAPTER 02 — THE MEMORIES                                */}
+      {/* ======================================================== */}
+      {showChapters && (
+        <CinematicChapterCard
+          number="02 / 06"
+          act="ACT II"
+          title={chapters.chapterTwo || 'THE MEMORIES'}
+          template={template}
+          tokens={tokens}
+          headingFont={headingFont}
+        />
+      )}
+
+      {/* ======================================================== */}
+      {/* 2. SECTION: MEMORIES ARCHIVE                            */}
+      {/* ======================================================== */}
+      <section id="sec-memories" className="relative px-4">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <span
+              className="text-xs font-mono tracking-[0.25em] uppercase font-semibold block mb-2"
+              style={{ color: tokens.primary }}
+            >
+              ACT II · {template === 'memories' ? 'CHRONICLES' : template === 'celebration' ? 'HIGHLIGHT REEL' : 'THE COMPLETE ARCHIVE'}
+            </span>
+            <SplitHeading
+              primaryPart={memoriesSplit.primary}
+              secondaryPart={memoriesSplit.secondary}
+              as="h2"
+              className={`text-3xl sm:text-4xl md:text-5xl font-bold mb-3 ${headingFont}`}
+            />
+            <p
+              className="text-xs sm:text-sm max-w-lg mx-auto leading-relaxed"
+              style={{ color: tokens.muted }}
+            >
+              Every chapter, laughter, and wild adventure preserved in sequence ({photos.length} total photographs).
+            </p>
+
+            {storyNarrative && (
+              <div
+                className="mt-4 max-w-xl mx-auto p-4 sm:p-5 rounded-2xl border shadow-lg"
+                style={{
+                  backgroundColor: tokens.surface,
+                  borderColor: borderStyle === 'none' ? 'transparent' : tokens.border,
+                }}
+              >
+                <p
+                  className={`text-xs sm:text-sm leading-relaxed ${bodyFont}`}
+                  style={{ color: tokens.body }}
+                >
+                  "{storyNarrative}"
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Active Photo Presentation Component */}
+          <PhotoPresentationView
+            photoStyle={photoStyle}
+            template={template}
+            photos={photos}
+            tokens={tokens}
+            headingFont={headingFont}
+            bodyFont={bodyFont}
+            heroFocus={heroFocus}
+            activeMemoryIndex={activeMemoryIndex}
+            onSelectMemory={setActiveMemoryIndex}
+            glowStyle={glowStyle}
+            borderStyle={borderStyle}
+          />
+        </div>
+      </section>
+
+      {/* Memory Spotlight (Feature 4) */}
+      {spotlightPhoto && (
+        <MemorySpotlightView
+          photo={spotlightPhoto}
+          template={template}
+          photoStyle={photoStyle}
+          tokens={tokens}
+          headingFont={headingFont}
+          bodyFont={bodyFont}
+          heroFocus={heroFocus}
+          glowStyle={glowStyle}
+        />
+      )}
+
+      {/* ======================================================== */}
+      {/* CHAPTER 03 — THE PEOPLE                                 */}
+      {/* ======================================================== */}
+      {showChapters && innerCirclePhotos.length > 0 && (
+        <CinematicChapterCard
+          number="03 / 06"
+          act="ACT III"
+          title={chapters.chapter3 || 'THE PEOPLE'}
+          template={template}
+          tokens={tokens}
+          headingFont={headingFont}
+        />
+      )}
+
+      {/* ======================================================== */}
+      {/* 3. SECTION: INNER CIRCLE                                */}
       {/* ======================================================== */}
       {innerCirclePhotos.length > 0 && (
         <section id="sec-circle" className="relative px-4">
@@ -605,64 +782,18 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
       )}
 
       {/* ======================================================== */}
-      {/* 4. SECTION 4 — ALL IMAGES / MEMORY SEQUENCE             */}
+      {/* CHAPTER 04 — THE VAULT                                  */}
       {/* ======================================================== */}
-      <section id="sec-memories" className="relative px-4">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <span
-              className="text-xs font-mono tracking-[0.25em] uppercase font-semibold block mb-2"
-              style={{ color: tokens.primary }}
-            >
-              ACT IV · {template === 'memories' ? 'CHRONICLES' : template === 'celebration' ? 'HIGHLIGHT REEL' : 'THE COMPLETE ARCHIVE'}
-            </span>
-            <SplitHeading
-              primaryPart={memoriesSplit.primary}
-              secondaryPart={memoriesSplit.secondary}
-              as="h2"
-              className={`text-3xl sm:text-4xl md:text-5xl font-bold mb-3 ${headingFont}`}
-            />
-            <p
-              className="text-xs sm:text-sm max-w-lg mx-auto leading-relaxed"
-              style={{ color: tokens.muted }}
-            >
-              Every chapter, laughter, and wild adventure preserved in sequence ({photos.length} total photographs).
-            </p>
-
-            {storyNarrative && (
-              <div
-                className="mt-4 max-w-xl mx-auto p-4 sm:p-5 rounded-2xl border shadow-lg"
-                style={{
-                  backgroundColor: tokens.surface,
-                  borderColor: borderStyle === 'none' ? 'transparent' : tokens.border,
-                }}
-              >
-                <p
-                  className={`text-xs sm:text-sm leading-relaxed ${bodyFont}`}
-                  style={{ color: tokens.body }}
-                >
-                  "{storyNarrative}"
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Active Photo Presentation Component */}
-          <PhotoPresentationView
-            photoStyle={photoStyle}
-            template={template}
-            photos={photos}
-            tokens={tokens}
-            headingFont={headingFont}
-            bodyFont={bodyFont}
-            heroFocus={heroFocus}
-            activeMemoryIndex={activeMemoryIndex}
-            onSelectMemory={setActiveMemoryIndex}
-            glowStyle={glowStyle}
-            borderStyle={borderStyle}
-          />
-        </div>
-      </section>
+      {showChapters && (
+        <CinematicChapterCard
+          number="04 / 06"
+          act="ACT IV"
+          title={chapters.chapter4 || 'THE VAULT'}
+          template={template}
+          tokens={tokens}
+          headingFont={headingFont}
+        />
+      )}
 
       {/* ======================================================== */}
       {/* 5. SECTION 5 — 3D PHOTO VAULT                           */}
@@ -883,6 +1014,44 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
         </div>
       </section>
 
+      {/* Secret Reveal (Feature 1) */}
+      {secretPhoto && (
+        <div id="sec-secret">
+          <SecretRevealView
+            photo={secretPhoto}
+            template={template}
+            photoStyle={photoStyle}
+            tokens={tokens}
+            headingFont={headingFont}
+            bodyFont={bodyFont}
+            heroFocus={heroFocus}
+            glowStyle={glowStyle}
+          />
+        </div>
+      )}
+
+      {/* Surprise Lock (Feature 5) */}
+      {showSurpriseLock && (
+        <SurpriseLockView
+          template={template}
+          tokens={tokens}
+          headingFont={headingFont}
+          bodyFont={bodyFont}
+        />
+      )}
+
+      {/* Chapter 05 — THE SURPRISE */}
+      {showChapters && surprisePhoto && (
+        <CinematicChapterCard
+          number="05 / 06"
+          act="ACT V"
+          title={chapters.chapter5 || 'THE SURPRISE'}
+          template={template}
+          tokens={tokens}
+          headingFont={headingFont}
+        />
+      )}
+
       {/* ======================================================== */}
       {/* 6. SECTION 6 — OPTIONAL SURPRISE IMAGE                  */}
       {/* ======================================================== */}
@@ -1063,6 +1232,20 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
       )}
 
       {/* ======================================================== */}
+      {/* CHAPTER 06 — FINALE                                     */}
+      {/* ======================================================== */}
+      {showChapters && (
+        <CinematicChapterCard
+          number="06 / 06"
+          act={surprisePhoto ? 'ACT VII' : 'ACT VI'}
+          title={chapters.chapter6 || 'FINALE'}
+          template={template}
+          tokens={tokens}
+          headingFont={headingFont}
+        />
+      )}
+
+      {/* ======================================================== */}
       {/* 7. SECTION 7 — REFERENCE-INSPIRED FINAL CINEMATIC REVEAL */}
       {/* ======================================================== */}
       <section id="sec-finale" className="relative w-full">
@@ -1080,6 +1263,39 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
           glowStyle={glowStyle}
         />
       </section>
+
+      {/* Hidden Message (Feature 2) */}
+      {cinematicExtras?.hiddenMessageEnabled && cinematicExtras.hiddenMessageText && (
+        <HiddenMessageTrigger
+          messageText={cinematicExtras.hiddenMessageText}
+          senderName={senderName}
+          template={template}
+          tokens={tokens}
+          headingFont={headingFont}
+          bodyFont={bodyFont}
+        />
+      )}
+
+      {/* Emotional Reaction (Feature 8) */}
+      <EmotionalReactionView
+        template={template}
+        tokens={tokens}
+        headingFont={headingFont}
+      />
+
+      {/* Replay Experience Button (Feature 7) */}
+      <ReplayButton
+        template={template}
+        tokens={tokens}
+        onReplay={handleReplay}
+      />
+
+      {/* Hidden Easter Egg Modal (Feature 10) */}
+      <EasterEggModal
+        isOpen={easterEggOpen}
+        onClose={() => setEasterEggOpen(false)}
+        accentColor={tokens.primary}
+      />
     </div>
   );
 };

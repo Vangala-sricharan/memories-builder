@@ -266,6 +266,42 @@ export const FinalReviewScreen: React.FC<FinalReviewScreenProps> = ({
             </div>
           </div>
 
+          {/* Cinematic Extras */}
+          <div className="p-4 rounded-2xl bg-[#141414] border border-[#262626] flex items-start gap-3.5">
+            <div className="w-8 h-8 rounded-xl bg-[#1A1A1A] flex items-center justify-center shrink-0 border border-white/10">
+              <Film className="w-4 h-4 text-[#E50914]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-white">Cinematic Extras (V1.5)</span>
+                <span className="text-emerald-400 font-mono text-[11px]">✓ Active</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                {draft.cinematicExtras?.secretRevealEnabled && (
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#E50914]/20 text-[#E50914] border border-[#E50914]/40">
+                    Secret Reveal
+                  </span>
+                )}
+                {draft.cinematicExtras?.hiddenMessageEnabled && (
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#E50914]/20 text-[#E50914] border border-[#E50914]/40">
+                    Hidden Message
+                  </span>
+                )}
+                {draft.cinematicExtras?.memorySpotlightEnabled && (
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#E50914]/20 text-[#E50914] border border-[#E50914]/40">
+                    Spotlight
+                  </span>
+                )}
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-neutral-800 text-neutral-300">
+                  {draft.cinematicExtras?.chapterTitlesEnabled !== false ? '6 Chapters' : 'Chapters Off'}
+                </span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-neutral-800 text-neutral-300">
+                  Replay & Reactions
+                </span>
+              </div>
+            </div>
+          </div>
+
           {/* 8. Visual Template & Colour Palette */}
           <div className="p-4 rounded-2xl bg-[#141414] border border-[#262626] flex items-start gap-3.5">
             <div

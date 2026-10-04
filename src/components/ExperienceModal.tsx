@@ -84,6 +84,16 @@ export const ExperienceModal: React.FC<ExperienceModalProps> = ({
             surprisePhoto={sampleSurprise}
             finalMessage={sampleBirthdayData.finalMessage}
             senderName="Jordan & The Crew"
+            cinematicExtras={{
+              chapterTitlesEnabled: true,
+              memorySpotlightEnabled: true,
+              spotlightPhotoIds: [samplePhotos[1]?.id || 'sample-2'],
+              secretRevealEnabled: false,
+              surpriseLockEnabled: true,
+              hiddenMessageEnabled: true,
+              hiddenMessageText: "You are the heart and anchor of our entire circle. Happy Birthday!",
+              easterEggEnabled: true,
+            }}
             isStandalone={true}
           />
         </div>

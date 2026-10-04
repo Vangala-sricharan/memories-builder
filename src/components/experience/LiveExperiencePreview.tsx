@@ -250,6 +250,7 @@ export const LiveExperiencePreview: React.FC<LiveExperiencePreviewProps> = ({
                   finalMessage={draft.finalMessage}
                   senderName={draft.senderName}
                   music={draft.music}
+                  cinematicExtras={draft.cinematicExtras}
                 />
               </div>
 
@@ -281,6 +282,7 @@ export const LiveExperiencePreview: React.FC<LiveExperiencePreviewProps> = ({
               finalMessage={draft.finalMessage}
               senderName={draft.senderName}
               music={draft.music}
+              cinematicExtras={draft.cinematicExtras}
             />
           </div>
         )}

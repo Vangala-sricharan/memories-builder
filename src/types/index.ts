@@ -34,6 +34,42 @@ export interface CustomSectionTitles {
   surprise?: string;
 }
 
+export interface ChapterTitlesConfig {
+  chapter1?: string; // Default: 'THE BEGINNING'
+  chapterTwo?: string; // Default: 'THE MEMORIES'
+  chapter3?: string; // Default: 'THE PEOPLE'
+  chapter4?: string; // Default: 'THE VAULT'
+  chapter5?: string; // Default: 'THE SURPRISE'
+  chapter6?: string; // Default: 'FINALE'
+}
+
+export interface CinematicExtras {
+  // 1. Secret Reveal
+  secretRevealEnabled?: boolean;
+  secretPhotoId?: string; // ID of chosen uploaded photo
+
+  // 2. Hidden Message
+  hiddenMessageEnabled?: boolean;
+  hiddenMessageText?: string;
+
+  // 3. Cinematic Chapter Titles
+  chapterTitlesEnabled?: boolean;
+  chapters?: ChapterTitlesConfig;
+
+  // 4. Memory Spotlight
+  memorySpotlightEnabled?: boolean;
+  spotlightPhotoIds?: string[]; // IDs of chosen uploaded photos
+
+  // 5. Surprise Lock
+  surpriseLockEnabled?: boolean;
+
+  // 6. Music-Synced Moments
+  musicSyncedEnabled?: boolean;
+
+  // 10. Easter Egg
+  easterEggEnabled?: boolean; // Default true (brand mark interaction)
+}
+
 export interface ExperienceCustomization {
   mood: ExperienceMood;
   accentIntensity: AccentIntensity;
@@ -95,6 +131,7 @@ export interface PublishedExperienceSnapshot {
   readonly vaultIntro?: string;
   readonly surpriseText?: string;
   readonly particleIntensity: 'subtle' | 'normal' | 'vibrant';
+  readonly cinematicExtras?: CinematicExtras;
   readonly publishedAt: string; // ISO 8601 UTC
   readonly expiresAt: string;   // ISO 8601 UTC
   readonly status: 'PUBLISHED' | 'EXPIRED';
@@ -143,6 +180,7 @@ export interface BirthdayExperienceDraft {
   vaultIntro?: string;
   surpriseText?: string;
   particleIntensity: 'subtle' | 'normal' | 'vibrant';
+  cinematicExtras?: CinematicExtras;
 }
 
 export interface PhotoMemory {
@@ -159,6 +197,7 @@ export interface BirthdayExperienceData {
   template?: ExperienceTemplate;
   theme?: ExperienceTheme;
   customization?: ExperienceCustomization;
+  cinematicExtras?: CinematicExtras;
   recipientName: string;
   milestoneAge: number;
   date: string;

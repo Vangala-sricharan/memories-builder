@@ -216,6 +216,7 @@ export const PublishedRecipientExperience: React.FC<PublishedRecipientExperience
           finalMessage={snapshot.finalMessage}
           senderName={snapshot.senderName}
           music={snapshot.music}
+          cinematicExtras={snapshot.cinematicExtras}
           isStandalone={true}
         />
       </main>

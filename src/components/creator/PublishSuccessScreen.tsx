@@ -221,12 +221,16 @@ export const PublishSuccessScreen: React.FC<PublishSuccessScreenProps> = ({
           </button>
         </div>
 
-        {/* Scannable QR Code */}
-        <div className="pt-2 flex flex-col items-center justify-center border-t border-[#1F1F1F]">
-          <span className="text-xs font-mono text-neutral-400 uppercase tracking-wider mb-4 block">
-            SCAN OR SHARE QR CODE
+        {/* Scannable Decorated QR Code Section */}
+        <div className="pt-6 flex flex-col items-center justify-center border-t border-[#1F1F1F]">
+          <span className="text-xs font-mono text-neutral-400 uppercase tracking-[0.25em] mb-4 block font-semibold">
+            SCAN OR SHARE
           </span>
-          <QrCodeGenerator value={shareUrl} size={200} />
+          <QrCodeGenerator 
+            value={shareUrl} 
+            recipientName={snapshot.recipientName}
+            size={360} 
+          />
         </div>
       </div>
 
