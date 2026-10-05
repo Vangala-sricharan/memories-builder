@@ -15,8 +15,10 @@ import {
   Plus,
   RefreshCw,
   Zap,
-  ShieldCheck
+  ShieldCheck,
+  Crop as CropIcon
 } from 'lucide-react';
+import { ImageEditorModal } from '../common/ImageEditorModal';
 
 interface PhotoUploaderProps {
   photos: UploadedPhoto[];
@@ -43,7 +45,29 @@ export const PhotoUploader: React.FC<PhotoUploaderProps> = ({
     fileName: '',
   });
   const [lastStats, setLastStats] = useState<OptimizationStats | null>(null);
+  const [editingPhoto, setEditingPhoto] = useState<UploadedPhoto | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleApplyPhotoEdit = (updatedPhoto: UploadedPhoto) => {
+    onPhotosChange(
+      photos.map((p) => (p.id === updatedPhoto.id ? updatedPhoto : p))
+    );
+    setEditingPhoto(null);
+  };
+
+  const handleResetPhotoToOriginal = (photoId: string) => {
+    onPhotosChange(
+      photos.map((p) => {
+        if (p.id !== photoId) return p;
+        return {
+          ...p,
+          previewUrl: p.originalPreviewUrl || p.previewUrl,
+          file: p.originalFile || p.file,
+          editState: undefined,
+        };
+      })
+    );
+  };
 
   const processFiles = async (files: FileList | File[]) => {
     setErrorMessage(null);
@@ -96,6 +120,8 @@ export const PhotoUploader: React.FC<PhotoUploaderProps> = ({
           id: `photo-${Date.now()}-${i}-${Math.random().toString(36).substring(2, 6)}`,
           file: res.file,
           previewUrl: res.previewUrl,
+          originalFile: res.file,
+          originalPreviewUrl: res.previewUrl,
           caption: nameWithoutExt,
           year: `${new Date().getFullYear()}`,
           aspect: '4:3',
@@ -178,6 +204,7 @@ export const PhotoUploader: React.FC<PhotoUploaderProps> = ({
       {
         id: 'sample-1',
         previewUrl: sampleCanvas1,
+        originalPreviewUrl: sampleCanvas1,
         caption: 'Sunrise over Mount Rainier · 14,411 ft',
         location: 'Wilderness Ridge',
         year: '2023',
@@ -185,6 +212,7 @@ export const PhotoUploader: React.FC<PhotoUploaderProps> = ({
       {
         id: 'sample-2',
         previewUrl: sampleCanvas2,
+        originalPreviewUrl: sampleCanvas2,
         caption: 'The spontaneous detour down Pacific Coast Highway',
         location: 'Big Sur, California',
         year: '2024',
@@ -192,6 +220,7 @@ export const PhotoUploader: React.FC<PhotoUploaderProps> = ({
       {
         id: 'sample-3',
         previewUrl: sampleCanvas3,
+        originalPreviewUrl: sampleCanvas3,
         caption: 'Night market exploration under warm paper lanterns',
         location: 'Kyoto, Japan',
         year: '2025',
@@ -199,6 +228,7 @@ export const PhotoUploader: React.FC<PhotoUploaderProps> = ({
       {
         id: 'sample-4',
         previewUrl: sampleCanvas4,
+        originalPreviewUrl: sampleCanvas4,
         caption: 'Surprise celebration dinner surrounded by lifelong friends',
         location: 'Brooklyn, New York',
         year: '2026',
@@ -397,6 +427,16 @@ export const PhotoUploader: React.FC<PhotoUploaderProps> = ({
                     </span>
 
                     <div className="flex items-center gap-1">
+                      {/* Edit / Crop Photo */}
+                      <button
+                        type="button"
+                        onClick={() => setEditingPhoto(photo)}
+                        title="Crop or rotate photo"
+                        className="p-1 rounded bg-black/70 hover:bg-[#E50914] text-white transition-colors cursor-pointer"
+                      >
+                        <CropIcon className="w-3.5 h-3.5" />
+                      </button>
+
                       {/* Move earlier */}
                       <button
                         type="button"
@@ -430,10 +470,50 @@ export const PhotoUploader: React.FC<PhotoUploaderProps> = ({
                       </button>
                     </div>
                   </div>
+
+                  {/* Hover Center Quick Edit Button */}
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 backdrop-blur-[1px] z-10 pointer-events-none">
+                    <button
+                      type="button"
+                      onClick={() => setEditingPhoto(photo)}
+                      className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#B80000] to-[#E50914] text-white text-xs font-mono font-bold flex items-center gap-1.5 shadow-[0_0_15px_rgba(229,9,20,0.6)] transition-transform hover:scale-105 active:scale-95 pointer-events-auto cursor-pointer"
+                    >
+                      <CropIcon className="w-3.5 h-3.5" />
+                      <span>{photo.editState ? 'Re-edit Crop' : 'Crop & Rotate'}</span>
+                    </button>
+                  </div>
+
+                  {/* Edited state badge */}
+                  {photo.editState && (
+                    <div className="absolute bottom-2 left-2 z-10 px-2 py-0.5 rounded bg-[#E50914]/90 text-white text-[9px] font-mono font-bold flex items-center gap-1 shadow-md">
+                      <Sparkles className="w-2.5 h-2.5" />
+                      <span>Edited {photo.editState.rotation > 0 ? `(${photo.editState.rotation}°)` : ''}</span>
+                    </div>
+                  )}
                 </div>
 
-                {/* Caption / Note input */}
+                {/* Caption / Note input & edit action */}
                 <div className="p-3 bg-[#0F0F0F] space-y-2">
+                  <div className="flex items-center justify-between text-[11px] font-mono">
+                    <button
+                      type="button"
+                      onClick={() => setEditingPhoto(photo)}
+                      className="text-neutral-400 hover:text-[#E50914] flex items-center gap-1 transition-colors cursor-pointer"
+                    >
+                      <CropIcon className="w-3 h-3 text-[#E50914]" />
+                      <span>{photo.editState ? 'Edit Crop & Angle' : 'Crop / Rotate'}</span>
+                    </button>
+                    {photo.editState && (
+                      <button
+                        type="button"
+                        onClick={() => handleResetPhotoToOriginal(photo.id)}
+                        className="text-neutral-500 hover:text-neutral-300 transition-colors cursor-pointer text-[10px]"
+                        title="Reset this photo to original orientation and crop"
+                      >
+                        Reset Original
+                      </button>
+                    )}
+                  </div>
                   <input
                     type="text"
                     value={photo.caption}
@@ -488,6 +568,15 @@ export const PhotoUploader: React.FC<PhotoUploaderProps> = ({
           <ArrowRight className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Interactive Image Crop & Rotate Modal */}
+      <ImageEditorModal
+        isOpen={!!editingPhoto}
+        photo={editingPhoto}
+        onApply={handleApplyPhotoEdit}
+        onCancel={() => setEditingPhoto(null)}
+        onResetToOriginal={handleResetPhotoToOriginal}
+      />
     </div>
   );
 };

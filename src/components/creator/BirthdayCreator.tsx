@@ -23,6 +23,11 @@ import { PublishConfirmationModal } from './PublishConfirmationModal';
 import { PublishSuccessScreen } from './PublishSuccessScreen';
 import { LiveExperiencePreview } from '../experience/LiveExperiencePreview';
 import { publishExperience, assertNotPublished } from '../../services/publishService';
+import { discardDraft } from '../../services/draftService';
+import { useDraftManager } from '../../hooks/useDraftManager';
+import { DraftStatusIndicator } from './DraftStatusIndicator';
+import { ExitProtectionModal } from './ExitProtectionModal';
+import { DraftRecoveryModal } from './DraftRecoveryModal';
 import { X, Lock } from 'lucide-react';
 
 interface BirthdayCreatorProps {
@@ -62,6 +67,33 @@ export const BirthdayCreator: React.FC<BirthdayCreatorProps> = ({
     tagline: 'A Cinematic Birthday Story',
     openingQuote: '“Some people make the world brighter simply by being in it. Here is a film of your light.”',
     particleIntensity: 'normal',
+  });
+
+  // Draft management, autosave, exit protection, and recovery
+  const {
+    saveStatus,
+    lastSavedAt,
+    isSavingManual,
+    handleManualSave,
+    handleRequestExit,
+    handleSaveAndExit,
+    handleExitWithoutSaving,
+    isExitModalOpen,
+    setIsExitModalOpen,
+    existingDraftSummary,
+    isRecoveryModalOpen,
+    handleContinueDraft,
+    handleDiscardDraft,
+    isLoadingDraft,
+  } = useDraftManager({
+    draft,
+    currentStep,
+    publishStatus,
+    onRestoreDraft: (restoredDraft, restoredStep) => {
+      setDraft(restoredDraft);
+      setCurrentStep(restoredStep);
+    },
+    onExit,
   });
 
   // Immutability-guarded update function
@@ -166,6 +198,8 @@ export const BirthdayCreator: React.FC<BirthdayCreatorProps> = ({
       setPublishStatus('PUBLISHED');
       setIsPublishModalOpen(false);
       setCurrentStep('published');
+      // Experience published successfully -> clear active draft from local storage
+      discardDraft();
     } catch (err: any) {
       setPublishStatus('FAILED');
       setPublishError(err.message || 'Something went wrong while publishing.');
@@ -176,6 +210,7 @@ export const BirthdayCreator: React.FC<BirthdayCreatorProps> = ({
 
   // Reset to brand new draft (guarantees published snapshot remains independent)
   const handleCreateAnother = () => {
+    discardDraft();
     setDraft({
       template: 'cinema',
       theme: { ...TEMPLATES.cinema.defaultTheme },
@@ -272,9 +307,18 @@ export const BirthdayCreator: React.FC<BirthdayCreatorProps> = ({
           </span>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Subtle Autosave Status Indicator */}
+          <DraftStatusIndicator
+            status={saveStatus}
+            lastSavedAt={lastSavedAt}
+            onManualSave={handleManualSave}
+            isSavingManual={isSavingManual}
+          />
+
           <button
-            onClick={onExit}
+            type="button"
+            onClick={handleRequestExit}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-neutral-400 hover:text-white rounded-lg border border-[#2B2B2B] hover:bg-[#161616] transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
@@ -327,6 +371,10 @@ export const BirthdayCreator: React.FC<BirthdayCreatorProps> = ({
         {currentStep === 'curate' && (
           <StoryCurationStep
             photos={draft.photos}
+            onUpdatePhoto={(updatedPhoto) => {
+              const updated = draft.photos.map((p) => (p.id === updatedPhoto.id ? updatedPhoto : p));
+              updateDraft({ photos: updated });
+            }}
             heroPhotoId={draft.heroPhotoId}
             onSelectHeroPhoto={(heroPhotoId) => updateDraft({ heroPhotoId })}
             innerCirclePhotoIds={draft.innerCirclePhotoIds}
@@ -391,6 +439,24 @@ export const BirthdayCreator: React.FC<BirthdayCreatorProps> = ({
           }
         }}
         onRetry={handleConfirmPublish}
+      />
+
+      {/* Exit Protection Modal */}
+      <ExitProtectionModal
+        isOpen={isExitModalOpen}
+        onSaveAndExit={handleSaveAndExit}
+        onExitWithoutSaving={handleExitWithoutSaving}
+        onCancel={() => setIsExitModalOpen(false)}
+        isSaving={isSavingManual}
+      />
+
+      {/* Draft Recovery Modal */}
+      <DraftRecoveryModal
+        isOpen={isRecoveryModalOpen}
+        summary={existingDraftSummary}
+        onContinueDraft={handleContinueDraft}
+        onDiscardDraft={handleDiscardDraft}
+        isLoading={isLoadingDraft}
       />
     </div>
   );

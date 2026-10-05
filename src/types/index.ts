@@ -137,14 +137,33 @@ export interface PublishedExperienceSnapshot {
   readonly status: 'PUBLISHED' | 'EXPIRED';
 }
 
+export interface ImageEditState {
+  crop: {
+    x: number; // percentage 0 - 100
+    y: number; // percentage 0 - 100
+    width: number; // percentage 0 - 100
+    height: number; // percentage 0 - 100
+  };
+  rotation: number; // 0, 90, 180, 270 degrees
+  zoom: number; // 1 to 3
+  position: {
+    x: number;
+    y: number;
+  };
+  aspectRatio?: 'free' | '1:1' | '4:3' | '16:9' | '3:4';
+}
+
 export interface UploadedPhoto {
   id: string;
   file?: File;
   previewUrl: string;
+  originalFile?: File;
+  originalPreviewUrl?: string;
   caption: string;
   location?: string;
   year?: string;
   aspect?: '16:9' | '4:3' | '1:1';
+  editState?: ImageEditState;
 }
 
 export interface UploadedMusic {
@@ -181,6 +200,20 @@ export interface BirthdayExperienceDraft {
   surpriseText?: string;
   particleIntensity: 'subtle' | 'normal' | 'vibrant';
   cinematicExtras?: CinematicExtras;
+}
+
+export type DraftSaveStatus = 'saved' | 'saving' | 'offline' | 'error' | 'idle';
+
+export interface SavedDraftSummary {
+  draftId: string;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+  currentStep: CreatorStep;
+  recipientName: string;
+  template: ExperienceTemplate;
+  photoCount: number;
+  hasMusic: boolean;
 }
 
 export interface PhotoMemory {

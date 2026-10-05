@@ -19,6 +19,7 @@ import { SurpriseLockView } from './SurpriseLockView';
 import { HiddenMessageTrigger } from './HiddenMessageTrigger';
 import { EmotionalReactionView } from './EmotionalReactionView';
 import { ReplayButton } from './ReplayButton';
+import { ThreeDimensionalVault } from './ThreeDimensionalVault';
 import { EasterEggModal } from '../common/EasterEggModal';
 import { 
   TEMPLATES, 
@@ -92,10 +93,6 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
     ? photos.filter((p) => innerCirclePhotoIds.includes(p.id))
     : photos.slice(0, Math.min(4, photos.length));
 
-  // 3D Vault interactive rotation angle
-  const [vaultRotation, setVaultRotation] = useState(0);
-  const [isVaultAutoSpinning, setIsVaultAutoSpinning] = useState(true);
-
   // Surprise Image reveal state
   const [surpriseRevealed, setSurpriseRevealed] = useState(false);
 
@@ -117,21 +114,6 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
   const memoriesTitle = customization?.sectionTitles?.memories?.trim() || 'THE MEMORY SEQUENCE';
   const vaultTitle = customization?.sectionTitles?.vault?.trim() || 'THE 3D PHOTO VAULT';
   const surpriseTitle = customization?.sectionTitles?.surprise?.trim() || 'A SPECIAL SURPRISE MOMENT';
-
-  // Spin speed calculated based on motionEnergy
-  const rotationIncrement = motionEnergy === 'epic' ? 0.75 : motionEnergy === 'subtle' ? 0.22 : 0.42;
-
-  // Auto-spin for the 3D Photo Vault
-  useEffect(() => {
-    if (!isVaultAutoSpinning) return;
-    const interval = setInterval(() => {
-      setVaultRotation((prev) => (prev + rotationIncrement) % 360);
-    }, 40);
-    return () => clearInterval(interval);
-  }, [isVaultAutoSpinning, rotationIncrement]);
-
-  const totalVaultCards = photos.length;
-  const radius = Math.max(260, Math.min(440, photos.length * 45));
 
   // Compute theme tokens and CSS variables
   const currentTemplateDef = TEMPLATES[template] || TEMPLATES.cinema;
@@ -827,190 +809,21 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
               {vaultIntro || 'First viewed as memories. Now preserved eternally in a rotating 3D archival vault.'}
             </p>
 
-            <div className="flex items-center justify-center gap-3 mt-4">
-              <button
-                type="button"
-                onClick={() => setIsVaultAutoSpinning(!isVaultAutoSpinning)}
-                className="px-4 py-1.5 rounded-full border text-xs font-mono transition-colors flex items-center gap-1.5 cursor-pointer"
-                style={{
-                  backgroundColor: tokens.surfaceHighlight,
-                  borderColor: tokens.border,
-                  color: tokens.secondary,
-                }}
-              >
-                <RotateCw className="w-3 h-3" style={{ color: tokens.primary }} />
-                <span>{isVaultAutoSpinning ? 'Pause Rotation' : 'Resume Rotation'}</span>
-              </button>
-            </div>
           </div>
 
-          {/* 3D Perspective Vault Stage */}
-          <div
-            className="relative h-[440px] sm:h-[500px] w-full flex items-center justify-center select-none"
-            style={{ perspective: '1200px' }}
-          >
-            {/* Ambient center spotlight pedestal */}
-            {glowStyle !== 'none' && (
-              <div
-                className="absolute w-72 h-72 rounded-full blur-[100px] pointer-events-none"
-                style={{ backgroundColor: tokens.glowStrong }}
-              />
-            )}
-
-            <div
-              className="relative w-48 sm:w-56 h-64 sm:h-72 transition-transform duration-100 ease-out"
-              style={{
-                transformStyle: 'preserve-3d',
-                transform: `rotateY(${vaultRotation}deg)`,
-              }}
-            >
-              {photos.map((photo, idx) => {
-                const angle = (idx / totalVaultCards) * 360;
-
-                // 1. POLAROID 3D VAULT CARD
-                if (photoStyle === 'polaroid') {
-                  return (
-                    <div
-                      key={`vault-${photo.id}`}
-                      className="absolute inset-0 bg-[#FAF8F5] text-[#1c1917] p-2 pb-3.5 rounded-[3px] shadow-[0_20px_40px_rgba(0,0,0,0.85)] border border-[#e8e4dc] flex flex-col justify-between"
-                      style={{
-                        transform: `rotateY(${angle}deg) translateZ(${radius}px)`,
-                        backfaceVisibility: 'hidden',
-                      }}
-                    >
-                      <div className="w-full h-40 sm:h-48 overflow-hidden bg-black relative rounded-[2px] shadow-[inset_0_1px_3px_rgba(0,0,0,0.4)] border border-black/15">
-                        <AutoFitImage
-                          src={photo.previewUrl}
-                          alt={photo.caption}
-                          focalPoint={heroFocus as any}
-                        />
-                        <div className="absolute top-1.5 left-1.5 text-[8px] font-mono px-1.5 py-0.5 rounded bg-black/70 text-white/90">
-                          POLAROID #{idx + 1}
-                        </div>
-                      </div>
-                      <div className="pt-2 px-1">
-                        <div 
-                          className="text-[11px] font-serif italic font-bold text-[#1c1917] truncate leading-tight"
-                          style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-                        >
-                          {photo.caption}
-                        </div>
-                        <div className="text-[9px] font-mono text-[#78716c] uppercase tracking-wider mt-0.5">
-                          {photo.year || 'PERMANENT VAULT'}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
-
-                // 2. FILM STRIP 3D VAULT CARD
-                if (photoStyle === 'film-strip') {
-                  return (
-                    <div
-                      key={`vault-${photo.id}`}
-                      className="absolute inset-0 bg-[#0B0B0B] border border-[#2d2d2d] shadow-[0_20px_40px_rgba(0,0,0,0.9)] p-1.5 pb-2 rounded-lg flex flex-col justify-between text-neutral-300"
-                      style={{
-                        transform: `rotateY(${angle}deg) translateZ(${radius}px)`,
-                        backfaceVisibility: 'hidden',
-                      }}
-                    >
-                      {/* Top micro sprockets */}
-                      <div className="h-2.5 bg-[#050505] px-2 flex items-center gap-2 overflow-hidden mb-1">
-                        {Array.from({ length: 8 }).map((_, h) => (
-                          <div key={`v-top-${h}`} className="w-2 h-1 rounded-[1px] bg-[#1a1a1a] border border-[#333] shrink-0" />
-                        ))}
-                      </div>
-
-                      <div className="w-full h-36 sm:h-44 overflow-hidden bg-black relative rounded-[2px]">
-                        <AutoFitImage
-                          src={photo.previewUrl}
-                          alt={photo.caption}
-                          focalPoint={heroFocus as any}
-                        />
-                        <div className="absolute top-1 left-1 text-[8px] font-mono px-1 py-0.5 rounded bg-black/80 text-white">
-                          ▸ 35MM #{idx + 1}A
-                        </div>
-                      </div>
-
-                      <div className="px-1 pt-1">
-                        <div className="text-[11px] font-bold text-white truncate">
-                          {photo.caption}
-                        </div>
-                        <div className="text-[8px] font-mono text-neutral-400">
-                          CELLULOID PRESERVED
-                        </div>
-                      </div>
-
-                      {/* Bottom micro sprockets */}
-                      <div className="h-2.5 bg-[#050505] px-2 flex items-center gap-2 overflow-hidden mt-1">
-                        {Array.from({ length: 8 }).map((_, h) => (
-                          <div key={`v-bot-${h}`} className="w-2 h-1 rounded-[1px] bg-[#1a1a1a] border border-[#333] shrink-0" />
-                        ))}
-                      </div>
-                    </div>
-                  );
-                }
-
-                // 3. FULLSCREEN / DEFAULT 3D VAULT CARD
-                return (
-                  <div
-                    key={`vault-${photo.id}`}
-                    className={`absolute inset-0 border shadow-2xl p-2 flex flex-col justify-between ${
-                      photoStyle === 'fullscreen'
-                        ? 'rounded-2xl border-2'
-                        : template === 'memories'
-                        ? 'rounded-3xl'
-                        : template === 'elegance'
-                        ? 'rounded-none border-white/20'
-                        : 'rounded-2xl'
-                    }`}
-                    style={{
-                      transform: `rotateY(${angle}deg) translateZ(${radius}px)`,
-                      backfaceVisibility: 'hidden',
-                      backgroundColor: tokens.surface,
-                      borderColor: borderStyle === 'none' ? 'transparent' : tokens.border,
-                    }}
-                  >
-                    <div
-                      className={`w-full h-44 sm:h-52 overflow-hidden bg-black relative ${
-                        template === 'memories' ? 'rounded-2xl' : template === 'elegance' ? 'rounded-none' : 'rounded-xl'
-                      }`}
-                    >
-                      <AutoFitImage
-                        src={photo.previewUrl}
-                        alt={photo.caption}
-                        focalPoint={heroFocus as any}
-                      />
-                      <div
-                        className="absolute top-1.5 left-1.5 text-[9px] font-mono px-1.5 py-0.5 rounded border"
-                        style={{
-                          backgroundColor: 'rgba(0,0,0,0.85)',
-                          borderColor: tokens.border,
-                          color: tokens.secondary,
-                        }}
-                      >
-                        VAULT #{idx + 1}
-                      </div>
-                    </div>
-                    <div className="p-1">
-                      <div
-                        className="text-[11px] font-bold truncate"
-                        style={{ color: tokens.secondary }}
-                      >
-                        {photo.caption}
-                      </div>
-                      <div
-                        className="text-[9px] font-mono"
-                        style={{ color: tokens.primary }}
-                      >
-                        ETERNALLY PRESERVED
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          {/* Dynamic 3D Vault with Adaptive Geometry for 3 to 20 Photos */}
+          <ThreeDimensionalVault
+            photos={photos}
+            photoStyle={photoStyle}
+            template={template}
+            heroFocus={heroFocus}
+            glowStyle={glowStyle}
+            borderStyle={borderStyle}
+            tokens={tokens}
+            headingFont={headingFont}
+            bodyFont={bodyFont}
+            vaultIntro={vaultIntro}
+          />
         </div>
       </section>
 

@@ -12,11 +12,14 @@ import {
   Check, 
   ShieldAlert,
   HelpCircle,
-  Eye
+  Eye,
+  Crop as CropIcon
 } from 'lucide-react';
+import { ImageEditorModal } from '../common/ImageEditorModal';
 
 interface StoryCurationStepProps {
   photos: UploadedPhoto[];
+  onUpdatePhoto?: (photo: UploadedPhoto) => void;
   heroPhotoId?: string;
   onSelectHeroPhoto: (id: string) => void;
   innerCirclePhotoIds: string[];
@@ -31,6 +34,7 @@ const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 
 export const StoryCurationStep: React.FC<StoryCurationStepProps> = ({
   photos,
+  onUpdatePhoto,
   heroPhotoId,
   onSelectHeroPhoto,
   innerCirclePhotoIds,
@@ -42,6 +46,8 @@ export const StoryCurationStep: React.FC<StoryCurationStepProps> = ({
 }) => {
   const surpriseInputRef = useRef<HTMLInputElement | null>(null);
   const [surpriseError, setSurpriseError] = useState<string | null>(null);
+  const [editingPhoto, setEditingPhoto] = useState<UploadedPhoto | null>(null);
+  const [isEditingSurprise, setIsEditingSurprise] = useState<boolean>(false);
 
   // Default hero to first photo if not set
   const activeHeroId = heroPhotoId || (photos.length > 0 ? photos[0].id : '');
@@ -63,10 +69,43 @@ export const StoryCurationStep: React.FC<StoryCurationStepProps> = ({
         id: `surprise-${Date.now()}`,
         file,
         previewUrl,
+        originalFile: file,
+        originalPreviewUrl: previewUrl,
         caption: 'A Secret Preserved Just For You',
         aspect: '16:9',
       });
       e.target.value = '';
+    }
+  };
+
+  const handleApplyEdit = (updatedPhoto: UploadedPhoto) => {
+    if (isEditingSurprise) {
+      onUpdateSurprisePhoto(updatedPhoto);
+    } else if (onUpdatePhoto) {
+      onUpdatePhoto(updatedPhoto);
+    }
+    setEditingPhoto(null);
+    setIsEditingSurprise(false);
+  };
+
+  const handleResetEdit = (photoId: string) => {
+    if (isEditingSurprise && surprisePhoto) {
+      onUpdateSurprisePhoto({
+        ...surprisePhoto,
+        previewUrl: surprisePhoto.originalPreviewUrl || surprisePhoto.previewUrl,
+        file: surprisePhoto.originalFile || surprisePhoto.file,
+        editState: undefined,
+      });
+    } else if (onUpdatePhoto) {
+      const ph = photos.find((p) => p.id === photoId);
+      if (ph) {
+        onUpdatePhoto({
+          ...ph,
+          previewUrl: ph.originalPreviewUrl || ph.previewUrl,
+          file: ph.originalFile || ph.file,
+          editState: undefined,
+        });
+      }
     }
   };
 
@@ -122,6 +161,19 @@ export const StoryCurationStep: React.FC<StoryCurationStepProps> = ({
                   #{idx + 1}
                 </div>
 
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsEditingSurprise(false);
+                    setEditingPhoto(ph);
+                  }}
+                  title="Crop or rotate this photo"
+                  className="absolute top-1.5 right-1.5 p-1 rounded bg-black/80 hover:bg-[#E50914] text-white transition-colors cursor-pointer z-10"
+                >
+                  <CropIcon className="w-3 h-3" />
+                </button>
+
                 {isHero && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/40">
                     <span className="bg-[#E50914] text-white text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded shadow flex items-center gap-1">
@@ -172,6 +224,19 @@ export const StoryCurationStep: React.FC<StoryCurationStepProps> = ({
                 <div className="absolute top-1.5 left-1.5 text-[9px] font-mono px-1 rounded bg-black/80 text-white">
                   #{idx + 1}
                 </div>
+
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsEditingSurprise(false);
+                    setEditingPhoto(ph);
+                  }}
+                  title="Crop or rotate this photo"
+                  className="absolute top-1.5 right-1.5 p-1 rounded bg-black/80 hover:bg-[#E50914] text-white transition-colors cursor-pointer z-10"
+                >
+                  <CropIcon className="w-3 h-3" />
+                </button>
 
                 <div className="absolute bottom-1.5 right-1.5">
                   <div
@@ -262,13 +327,29 @@ export const StoryCurationStep: React.FC<StoryCurationStepProps> = ({
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => onUpdateSurprisePhoto(null)}
-              className="p-2 rounded-lg bg-[#251010] hover:bg-red-950 text-neutral-400 hover:text-red-400 transition-colors cursor-pointer"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsEditingSurprise(true);
+                  setEditingPhoto(surprisePhoto);
+                }}
+                className="px-3 py-1.5 rounded-lg bg-[#251010] hover:bg-[#E50914] text-neutral-300 hover:text-white text-xs font-mono flex items-center gap-1.5 transition-colors cursor-pointer"
+                title="Crop or rotate surprise photo"
+              >
+                <CropIcon className="w-3.5 h-3.5 text-[#E50914]" />
+                <span>Crop / Rotate</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onUpdateSurprisePhoto(null)}
+                className="p-2 rounded-lg bg-[#251010] hover:bg-red-950 text-neutral-400 hover:text-red-400 transition-colors cursor-pointer"
+                title="Remove surprise photo"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -293,6 +374,18 @@ export const StoryCurationStep: React.FC<StoryCurationStepProps> = ({
           <ArrowRight className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Interactive Crop & Rotate Modal for Story Curation */}
+      <ImageEditorModal
+        isOpen={!!editingPhoto}
+        photo={editingPhoto}
+        onApply={handleApplyEdit}
+        onCancel={() => {
+          setEditingPhoto(null);
+          setIsEditingSurprise(false);
+        }}
+        onResetToOriginal={handleResetEdit}
+      />
     </div>
   );
 };
