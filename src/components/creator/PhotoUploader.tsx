@@ -73,8 +73,8 @@ export const PhotoUploader: React.FC<PhotoUploaderProps> = ({
     setErrorMessage(null);
     const incoming = Array.from(files);
 
-    if (photos.length + incoming.length > 20) {
-      setErrorMessage('You can add up to 20 photos.');
+    if (photos.length + incoming.length > 25) {
+      setErrorMessage('You can add up to 25 photos.');
       return;
     }
 
@@ -199,6 +199,8 @@ export const PhotoUploader: React.FC<PhotoUploaderProps> = ({
     const sampleCanvas2 = createSampleMemoryCanvas('Highway 1 Roadtrip', '#111827', '#1F2937');
     const sampleCanvas3 = createSampleMemoryCanvas('Lantern Festival in Kyoto', '#1C1917', '#441917');
     const sampleCanvas4 = createSampleMemoryCanvas('Rooftop Birthday Surprise', '#09090B', '#27272A');
+    const sampleCanvas5 = createSampleMemoryCanvas('Venice Canals at Twilight', '#18122B', '#393053');
+    const sampleCanvas6 = createSampleMemoryCanvas('Stargazing in Joshua Tree', '#0A192F', '#172A45');
 
     const sampleSet: UploadedPhoto[] = [
       {
@@ -233,25 +235,41 @@ export const PhotoUploader: React.FC<PhotoUploaderProps> = ({
         location: 'Brooklyn, New York',
         year: '2026',
       },
+      {
+        id: 'sample-5',
+        previewUrl: sampleCanvas5,
+        originalPreviewUrl: sampleCanvas5,
+        caption: 'Twilight gondola journey through silent ancient canals',
+        location: 'Venice, Italy',
+        year: '2026',
+      },
+      {
+        id: 'sample-6',
+        previewUrl: sampleCanvas6,
+        originalPreviewUrl: sampleCanvas6,
+        caption: 'Midnight stargazing beneath the desert cosmos',
+        location: 'Joshua Tree, California',
+        year: '2026',
+      },
     ];
 
     onPhotosChange(sampleSet);
   };
 
   const handleContinue = () => {
-    if (photos.length < 3) {
-      setErrorMessage('Add at least 3 photos to continue.');
+    if (photos.length < 6) {
+      setErrorMessage('Add at least 6 photos to continue.');
       return;
     }
-    if (photos.length > 20) {
-      setErrorMessage('You can add up to 20 photos.');
+    if (photos.length > 25) {
+      setErrorMessage('You can add up to 25 photos.');
       return;
     }
     setErrorMessage(null);
     onNext();
   };
 
-  const isCountValid = photos.length >= 3 && photos.length <= 20;
+  const isCountValid = photos.length >= 6 && photos.length <= 25;
 
   return (
     <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6">
@@ -264,7 +282,7 @@ export const PhotoUploader: React.FC<PhotoUploaderProps> = ({
           CURATE THEIR MEMORIES
         </h2>
         <p className="text-sm text-neutral-400 max-w-lg mx-auto leading-relaxed [text-wrap:balance]">
-          Upload between 3 and 20 photographs. Automatically optimized for 4K clarity, cinematic depth, and ultra-fast loading.
+          Upload between 6 and 25 photographs. Automatically optimized for 4K clarity, cinematic depth, and ultra-fast loading.
         </p>
 
         {/* Counter Badge */}
@@ -275,11 +293,11 @@ export const PhotoUploader: React.FC<PhotoUploaderProps> = ({
             }`}
           />
           <span className="text-xs font-mono text-white">
-            {photos.length} / 20 PHOTOS ADDED
+            {photos.length} / 25 PHOTOS ADDED
           </span>
           <span className="text-neutral-500 text-xs">·</span>
           <span className="text-neutral-400 text-xs font-mono">
-            {photos.length < 3 ? `Need ${3 - photos.length} more` : 'Minimum reached'}
+            {photos.length < 6 ? `Need ${6 - photos.length} more` : 'Minimum reached'}
           </span>
         </div>
       </div>
@@ -343,7 +361,7 @@ export const PhotoUploader: React.FC<PhotoUploaderProps> = ({
       )}
 
       {/* Cinematic Drag and Drop Zone */}
-      {photos.length < 20 && !isOptimizing && (
+      {photos.length < 25 && !isOptimizing && (
         <div
           onDragEnter={handleDrag}
           onDragLeave={handleDrag}
@@ -370,7 +388,7 @@ export const PhotoUploader: React.FC<PhotoUploaderProps> = ({
           <div className="flex flex-wrap items-center justify-center gap-3 text-[11px] text-neutral-400 font-mono">
             <span>JPG · PNG · WEBP</span>
             <span>·</span>
-            <span className="text-[#E50914]">3 TO 20 PHOTOS</span>
+            <span className="text-[#E50914]">6 TO 25 PHOTOS</span>
             <span>·</span>
             <span>AUTO-ENCODED AT 2560PX</span>
           </div>
@@ -385,7 +403,7 @@ export const PhotoUploader: React.FC<PhotoUploaderProps> = ({
               }}
               className="text-xs text-neutral-400 hover:text-white underline underline-offset-4 transition-colors cursor-pointer"
             >
-              Or load 4 high-contrast cinematic sample memories to test immediately
+              Or load 6 high-contrast cinematic sample memories to test immediately
             </button>
           </div>
         </div>
@@ -532,15 +550,15 @@ export const PhotoUploader: React.FC<PhotoUploaderProps> = ({
               </div>
             ))}
 
-            {/* Add more button tile if under 20 */}
-            {photos.length < 20 && !isOptimizing && (
+            {/* Add more button tile if under 25 */}
+            {photos.length < 25 && !isOptimizing && (
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 className="aspect-[4/3] rounded-xl border border-dashed border-[#2E2E2E] bg-[#0E0E0E] hover:border-[#E50914] hover:bg-[#141414] text-neutral-400 hover:text-white flex flex-col items-center justify-center gap-2 transition-all cursor-pointer"
               >
                 <Plus className="w-6 h-6 text-[#E50914]" />
-                <span className="text-xs font-medium">Add Photo ({photos.length}/20)</span>
+                <span className="text-xs font-medium">Add Photo ({photos.length}/25)</span>
               </button>
             )}
           </div>

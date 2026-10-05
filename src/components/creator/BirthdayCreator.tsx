@@ -129,9 +129,9 @@ export const BirthdayCreator: React.FC<BirthdayCreatorProps> = ({
       case 'details':
         return !!draft.recipientName.trim();
       case 'photos':
-        return draft.photos.length >= 3 && draft.photos.length <= 20;
+        return draft.photos.length >= 6 && draft.photos.length <= 25;
       case 'curate':
-        return draft.photos.length >= 3;
+        return draft.photos.length >= 6;
       case 'music':
         return true; // Music is optional for testing & quiet mode
       case 'customize':

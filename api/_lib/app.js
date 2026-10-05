@@ -701,8 +701,8 @@ apiRouter.post("/publish", async (req, res) => {
       res.status(400).json({ success: false, error: "A recipient name is required to publish." });
       return;
     }
-    if (!draft.photos || !Array.isArray(draft.photos) || draft.photos.length < 3 || draft.photos.length > 20) {
-      res.status(400).json({ success: false, error: "A minimum of 3 and maximum of 20 photos are required." });
+    if (!draft.photos || !Array.isArray(draft.photos) || draft.photos.length < 6 || draft.photos.length > 25) {
+      res.status(400).json({ success: false, error: "A minimum of 6 and maximum of 25 photos are required." });
       return;
     }
     const experienceId = requestedId && /^[a-zA-Z0-9_-]{8,16}$/.test(requestedId) ? requestedId : crypto2.randomBytes(8).toString("base64url").replace(/[^a-zA-Z0-9]/g, "").slice(0, 12);
@@ -731,6 +731,7 @@ apiRouter.post("/publish", async (req, res) => {
         primary: draft.theme?.primary || "#E50914",
         secondary: draft.theme?.secondary || "#FFFFFF"
       },
+      customization: draft.customization || void 0,
       recipientName: draft.recipientName.trim(),
       relationship: draft.relationship,
       customRelationship: draft.customRelationship,
@@ -744,7 +745,8 @@ apiRouter.post("/publish", async (req, res) => {
         caption: p.caption,
         location: p.location,
         year: p.year,
-        aspect: p.aspect
+        aspect: p.aspect,
+        editState: p.editState
       })),
       heroPhotoId: draft.heroPhotoId || draft.photos[0]?.id,
       innerCirclePhotoIds: draft.innerCirclePhotoIds && draft.innerCirclePhotoIds.length > 0 ? draft.innerCirclePhotoIds : draft.photos.slice(0, Math.min(4, draft.photos.length)).map((p) => p.id),
@@ -753,8 +755,18 @@ apiRouter.post("/publish", async (req, res) => {
         previewUrl: draft.surprisePhoto.previewUrl,
         caption: draft.surprisePhoto.caption,
         location: draft.surprisePhoto.location,
-        year: draft.surprisePhoto.year
+        year: draft.surprisePhoto.year,
+        editState: draft.surprisePhoto.editState
       } : null,
+      secretPhotos: Array.isArray(draft.secretPhotos) ? draft.secretPhotos.map((p) => ({
+        id: p.id,
+        previewUrl: p.previewUrl,
+        caption: p.caption,
+        location: p.location,
+        year: p.year,
+        aspect: p.aspect,
+        editState: p.editState
+      })) : void 0,
       finalMessage: draft.finalMessage || "Wishing you a magnificent year ahead.",
       music: draft.music ? {
         url: draft.music.url,
@@ -768,6 +780,7 @@ apiRouter.post("/publish", async (req, res) => {
       vaultIntro: draft.vaultIntro,
       surpriseText: draft.surpriseText,
       particleIntensity: draft.particleIntensity || "normal",
+      cinematicExtras: draft.cinematicExtras || void 0,
       publishedAt,
       expiresAt,
       status: "PUBLISHED"

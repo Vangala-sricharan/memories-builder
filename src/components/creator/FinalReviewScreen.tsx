@@ -46,8 +46,9 @@ export const FinalReviewScreen: React.FC<FinalReviewScreenProps> = ({
 
   // Validation checks
   const hasRecipient = !!draft.recipientName && draft.recipientName.trim().length > 0;
-  const hasMinPhotos = draft.photos.length >= 3;
-  const canPublish = hasRecipient && hasMinPhotos;
+  const hasMinPhotos = draft.photos.length >= 6;
+  const hasMaxPhotos = draft.photos.length <= 25;
+  const canPublish = hasRecipient && hasMinPhotos && hasMaxPhotos;
 
   return (
     <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 space-y-10">
@@ -72,7 +73,8 @@ export const FinalReviewScreen: React.FC<FinalReviewScreenProps> = ({
             <div>
               <span className="font-bold uppercase tracking-wider block mb-0.5">Publishing Blocked</span>
               {!hasRecipient && <p>• Recipient name is missing. Please add a recipient name.</p>}
-              {!hasMinPhotos && <p>• At least 3 photos are required (currently {draft.photos.length} uploaded).</p>}
+              {!hasMinPhotos && <p>• At least 6 photos are required (currently {draft.photos.length} uploaded).</p>}
+              {!hasMaxPhotos && <p>• A maximum of 25 photos are allowed (currently {draft.photos.length} uploaded).</p>}
             </div>
           </div>
         )}

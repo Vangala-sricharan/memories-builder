@@ -6,9 +6,7 @@ import {
   RotateCw, 
   ChevronLeft, 
   ChevronRight, 
-  Eye, 
-  Sparkles,
-  Layers,
+  Maximize2,
   Pause,
   Play
 } from 'lucide-react';
@@ -24,6 +22,7 @@ interface ThreeDimensionalVaultProps {
   headingFont: string;
   bodyFont: string;
   vaultIntro?: string;
+  onOpenFullscreen?: (photo: UploadedPhoto, index: number) => void;
 }
 
 export const ThreeDimensionalVault: React.FC<ThreeDimensionalVaultProps> = ({
@@ -37,21 +36,33 @@ export const ThreeDimensionalVault: React.FC<ThreeDimensionalVaultProps> = ({
   headingFont,
   bodyFont,
   vaultIntro,
+  onOpenFullscreen,
 }) => {
   const totalCards = photos.length;
 
-  // Rotation state
+  // Rotation and momentum physics state
   const [vaultRotation, setVaultRotation] = useState<number>(0);
   const [isAutoSpinning, setIsAutoSpinning] = useState<boolean>(true);
   const [isMobile, setIsMobile] = useState<boolean>(false);
   const [containerWidth, setContainerWidth] = useState<number>(800);
+  const [tilt, setTilt] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
-  // Drag interaction state
-  const [isDragging, setIsDragging] = useState<boolean>(false);
-  const [dragStartX, setDragStartX] = useState<number>(0);
-  const [rotationAtDragStart, setRotationAtDragStart] = useState<number>(0);
+  // Physics & animation frame refs
+  const isDraggingRef = useRef<boolean>(false);
+  const dragStartXRef = useRef<number>(0);
+  const dragStartYRef = useRef<number>(0);
+  const lastDragXRef = useRef<number>(0);
+  const lastDragTimeRef = useRef<number>(0);
+  const velocityRef = useRef<number>(0);
+  const rotationRef = useRef<number>(0);
+  const tiltRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const targetTiltRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const animFrameRef = useRef<number | null>(null);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const stageRef = useRef<HTMLDivElement | null>(null);
+
+  rotationRef.current = vaultRotation;
 
   // Responsive window & container observer
   useEffect(() => {
@@ -69,66 +80,77 @@ export const ThreeDimensionalVault: React.FC<ThreeDimensionalVaultProps> = ({
     return () => window.removeEventListener('resize', updateDimensions);
   }, []);
 
-  // 1. DYNAMIC VAULT ALGORITHM:
-  // Dynamically calculate card scale, radius, depth, and perspective based on photoCount & viewport
+  // 1. DYNAMIC VAULT ALGORITHM (6 to 25 Images — Absolute No-Collision Guarantee):
+  // R = (cardWidth + minGap) / (2 * sin(PI / N))
   const geometry = useMemo(() => {
-    const N = Math.max(3, Math.min(20, totalCards));
+    const N = Math.max(6, Math.min(25, totalCards));
     const rotationStep = 360 / N;
 
-    let cardWidth = 220;
-    let cardHeight = 300;
-    let radius = 380;
+    let cardWidth = 210;
+    let cardHeight = 290;
+    let minGap = isMobile ? 16 : 30;
     let perspective = 1200;
 
     if (isMobile) {
-      // Mobile viewport (under 640px)
-      if (N <= 6) {
-        // Low photo count (3-6)
-        cardWidth = 185;
-        cardHeight = 250;
-        radius = 210;
+      // Mobile Viewport (<640px)
+      if (N <= 8) {
+        cardWidth = 175;
+        cardHeight = 240;
+        minGap = 20;
         perspective = 900;
-      } else if (N <= 12) {
-        // Medium photo count (7-12)
-        cardWidth = 160;
-        cardHeight = 225;
-        radius = 260;
+      } else if (N <= 14) {
+        cardWidth = 150;
+        cardHeight = 210;
+        minGap = 16;
         perspective = 950;
-      } else {
-        // High photo count (13-20)
-        cardWidth = 140;
-        cardHeight = 200;
-        radius = 295;
+      } else if (N <= 20) {
+        cardWidth = 130;
+        cardHeight = 185;
+        minGap = 14;
         perspective = 1000;
+      } else {
+        // 21-25 images
+        cardWidth = 115;
+        cardHeight = 165;
+        minGap = 12;
+        perspective = 1050;
       }
     } else {
-      // Desktop / Tablet viewport (640px+)
-      if (N <= 6) {
-        // Low photo count (3-6): dramatic large cards, spacious presentation
-        cardWidth = 260;
-        cardHeight = 350;
-        radius = 340;
+      // Desktop / Tablet (>=640px)
+      if (N <= 8) {
+        // 6-8 images: large cards, spacious presentation
+        cardWidth = 250;
+        cardHeight = 340;
+        minGap = 45;
         perspective = 1200;
-      } else if (N <= 12) {
-        // Medium photo count (7-12): slightly tighter cards & radius
-        cardWidth = 225;
-        cardHeight = 310;
-        radius = 400;
+      } else if (N <= 14) {
+        // 9-14 images: moderate cards, balanced depth
+        cardWidth = 215;
+        cardHeight = 295;
+        minGap = 35;
         perspective = 1300;
-      } else {
-        // High photo count (13-20): controlled card scaling, optimized depth
-        cardWidth = 190;
-        cardHeight = 270;
-        radius = 450;
+      } else if (N <= 20) {
+        // 15-20 images: compact cards, visible spacing
+        cardWidth = 180;
+        cardHeight = 255;
+        minGap = 28;
         perspective = 1400;
+      } else {
+        // 21-25 images: compact cards, carefully calculated no-collision gap
+        cardWidth = 155;
+        cardHeight = 220;
+        minGap = 22;
+        perspective = 1450;
       }
     }
 
-    // Safety: ensure radius fits cleanly within the container without pushing cards out
-    const maxAllowedRadius = Math.max(180, (containerWidth * 0.44));
-    if (radius > maxAllowedRadius) {
-      radius = Math.round(maxAllowedRadius);
-    }
+    // Mathematical formula guaranteeing NO COLLISION:
+    // Arc distance between card centers is 2 * R * sin(PI / N) = cardWidth + minGap > cardWidth
+    const calculatedRadius = Math.round((cardWidth + minGap) / (2 * Math.sin(Math.PI / N)));
+
+    // Prevent radius from overflowing container
+    const maxRadius = Math.max(180, Math.round(containerWidth * 0.46));
+    const radius = Math.min(calculatedRadius, maxRadius);
 
     return {
       N,
@@ -140,34 +162,55 @@ export const ThreeDimensionalVault: React.FC<ThreeDimensionalVaultProps> = ({
     };
   }, [totalCards, isMobile, containerWidth]);
 
-  // Rotation speed derived from photo count (smoother for more photos)
-  const rotationIncrement = useMemo(() => {
-    if (geometry.N <= 6) return 0.35;
-    if (geometry.N <= 12) return 0.28;
-    return 0.22;
+  // Idle rotation speed based on card count
+  const idleIncrement = useMemo(() => {
+    if (geometry.N <= 8) return 0.32;
+    if (geometry.N <= 14) return 0.25;
+    if (geometry.N <= 20) return 0.20;
+    return 0.16;
   }, [geometry.N]);
 
-  // Auto-spin animation loop
+  // Inertia & Continuous Rotation Animation Loop (60 FPS via requestAnimationFrame)
   useEffect(() => {
-    if (!isAutoSpinning || isDragging) return;
+    const loop = () => {
+      if (!isDraggingRef.current) {
+        // If there is residual velocity from drag release, apply momentum with friction
+        if (Math.abs(velocityRef.current) > 0.03) {
+          rotationRef.current = (rotationRef.current + velocityRef.current) % 360;
+          velocityRef.current *= 0.94; // Friction damping
+          setVaultRotation(rotationRef.current);
+        } else if (isAutoSpinning) {
+          // Resume subtle idle auto-rotation
+          rotationRef.current = (rotationRef.current + idleIncrement) % 360;
+          setVaultRotation(rotationRef.current);
+        }
 
-    const interval = setInterval(() => {
-      setVaultRotation((prev) => (prev + rotationIncrement) % 360);
-    }, 40);
+        // Smoothly interpolate mouse tilt towards target
+        const currentTilt = tiltRef.current;
+        const targetTilt = targetTiltRef.current;
+        const nextX = currentTilt.x + (targetTilt.x - currentTilt.x) * 0.08;
+        const nextY = currentTilt.y + (targetTilt.y - currentTilt.y) * 0.08;
+        tiltRef.current = { x: nextX, y: nextY };
+        setTilt({ x: nextX, y: nextY });
+      }
 
-    return () => clearInterval(interval);
-  }, [isAutoSpinning, isDragging, rotationIncrement]);
+      animFrameRef.current = requestAnimationFrame(loop);
+    };
 
-  // Determine Active Card (the card closest to 0 degrees / camera)
+    animFrameRef.current = requestAnimationFrame(loop);
+    return () => {
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    };
+  }, [isAutoSpinning, idleIncrement]);
+
+  // Active focused card index (card closest to 0° facing the camera)
   const activeIndex = useMemo(() => {
     if (totalCards === 0) return 0;
-
     let closestIdx = 0;
     let minDiff = 9999;
 
     for (let i = 0; i < totalCards; i++) {
       const cardAngle = i * geometry.rotationStep;
-      // Normalize angle relative to current rotation to [-180, 180]
       let relAngle = ((cardAngle + vaultRotation) % 360 + 540) % 360 - 180;
       const absDiff = Math.abs(relAngle);
       if (absDiff < minDiff) {
@@ -175,54 +218,101 @@ export const ThreeDimensionalVault: React.FC<ThreeDimensionalVaultProps> = ({
         closestIdx = i;
       }
     }
-
     return closestIdx;
   }, [totalCards, geometry.rotationStep, vaultRotation]);
 
-  // Navigate to specific card
+  // Navigate directly to specific card
   const navigateToCard = useCallback((targetIndex: number) => {
+    velocityRef.current = 0;
     const targetAngle = -targetIndex * geometry.rotationStep;
+    rotationRef.current = targetAngle;
     setVaultRotation(targetAngle);
-    // Briefly pause auto-spin so user can examine chosen card
     setIsAutoSpinning(false);
   }, [geometry.rotationStep]);
 
-  // Next / Previous step controls
   const handlePrev = () => {
-    setVaultRotation((prev) => prev + geometry.rotationStep);
+    velocityRef.current = 0;
+    rotationRef.current += geometry.rotationStep;
+    setVaultRotation(rotationRef.current);
     setIsAutoSpinning(false);
   };
 
   const handleNext = () => {
-    setVaultRotation((prev) => prev - geometry.rotationStep);
+    velocityRef.current = 0;
+    rotationRef.current -= geometry.rotationStep;
+    setVaultRotation(rotationRef.current);
     setIsAutoSpinning(false);
   };
 
-  // Drag / Swipe handling
+  // Mouse Tilt tracking (Pointer move when hovering over stage)
+  const handleStagePointerMove = (e: React.PointerEvent) => {
+    if (!stageRef.current) return;
+
+    const rect = stageRef.current.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
+    const normX = Math.max(-1, Math.min(1, (e.clientX - centerX) / (rect.width / 2)));
+    const normY = Math.max(-1, Math.min(1, (e.clientY - centerY) / (rect.height / 2)));
+
+    // Subtle tilt: up to 8 deg vertical, 8 deg horizontal
+    targetTiltRef.current = {
+      x: -normY * 8,
+      y: normX * 8,
+    };
+
+    // If dragging, handle interactive rotation
+    if (isDraggingRef.current) {
+      const now = performance.now();
+      const deltaX = e.clientX - lastDragXRef.current;
+      const dt = Math.max(1, now - lastDragTimeRef.current);
+
+      // Sensitivity factor
+      const sensitivity = isMobile ? 0.45 : 0.35;
+      rotationRef.current += deltaX * sensitivity;
+      setVaultRotation(rotationRef.current);
+
+      // Calculate instantaneous release velocity
+      velocityRef.current = (deltaX / dt) * 16 * sensitivity;
+      lastDragXRef.current = e.clientX;
+      lastDragTimeRef.current = now;
+    }
+  };
+
   const handlePointerDown = (e: React.PointerEvent) => {
-    setIsDragging(true);
-    setDragStartX(e.clientX);
-    setRotationAtDragStart(vaultRotation);
+    isDraggingRef.current = true;
+    dragStartXRef.current = e.clientX;
+    dragStartYRef.current = e.clientY;
+    lastDragXRef.current = e.clientX;
+    lastDragTimeRef.current = performance.now();
+    velocityRef.current = 0;
     setIsAutoSpinning(false);
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-  };
 
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (!isDragging) return;
-    const deltaX = e.clientX - dragStartX;
-    // Map horizontal drag pixels to rotation degrees
-    const sensitivity = isMobile ? 0.45 : 0.35;
-    setVaultRotation(rotationAtDragStart + deltaX * sensitivity);
+    try {
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    } catch (err) {
+      // Safe ignore
+    }
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
-    if (isDragging) {
+    if (isDraggingRef.current) {
+      isDraggingRef.current = false;
       try {
         (e.target as HTMLElement).releasePointerCapture(e.pointerId);
       } catch (err) {
         // Safe ignore
       }
-      setIsDragging(false);
+      // Clamp release velocity to smooth cinematic range
+      velocityRef.current = Math.max(-14, Math.min(14, velocityRef.current));
+    }
+  };
+
+  const handlePointerLeave = () => {
+    // Gracefully return tilt to neutral without snapping rotation
+    targetTiltRef.current = { x: 0, y: 0 };
+    if (isDraggingRef.current) {
+      isDraggingRef.current = false;
     }
   };
 
@@ -231,7 +321,7 @@ export const ThreeDimensionalVault: React.FC<ThreeDimensionalVaultProps> = ({
   return (
     <div 
       ref={containerRef}
-      className="w-full max-w-full overflow-hidden relative flex flex-col items-center"
+      className="w-full max-w-full overflow-hidden relative flex flex-col items-center select-none"
     >
       {/* Vault Header Controls */}
       <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-4 mb-6 z-10">
@@ -292,13 +382,15 @@ export const ThreeDimensionalVault: React.FC<ThreeDimensionalVaultProps> = ({
         </button>
       </div>
 
-      {/* 3D Perspective Stage */}
+      {/* 3D Perspective Stage with Mouse Tilt & Inertia Drag */}
       <div
+        ref={stageRef}
         onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
+        onPointerMove={handleStagePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
-        className="relative w-full max-w-full h-[460px] sm:h-[530px] flex items-center justify-center select-none overflow-hidden cursor-grab active:cursor-grabbing"
+        onPointerLeave={handlePointerLeave}
+        className="relative w-full max-w-full h-[470px] sm:h-[550px] flex items-center justify-center overflow-hidden cursor-grab active:cursor-grabbing"
         style={{
           perspective: `${geometry.perspective}px`,
           perspectiveOrigin: '50% 50%',
@@ -313,21 +405,21 @@ export const ThreeDimensionalVault: React.FC<ThreeDimensionalVaultProps> = ({
           />
         )}
 
-        {/* The 3D Rotating Pivot Cylinder */}
+        {/* The 3D Rotating Pivot Cylinder (with Mouse Tilt Parallax) */}
         <div
-          className="relative flex items-center justify-center transition-transform duration-200 ease-out"
+          className="relative flex items-center justify-center transition-transform duration-75 ease-out"
           style={{
             width: `${geometry.cardWidth}px`,
             height: `${geometry.cardHeight}px`,
             transformStyle: 'preserve-3d',
-            transform: `translateZ(-${geometry.radius}px) rotateY(${vaultRotation}deg)`,
+            transform: `rotateX(${tilt.x}deg) rotateZ(${tilt.y * 0.25}deg) translateZ(-${geometry.radius}px) rotateY(${vaultRotation}deg)`,
           }}
         >
           {photos.map((photo, idx) => {
             const angle = idx * geometry.rotationStep;
             const isCardActive = idx === activeIndex;
 
-            // Calculate relative angle to viewer to fade cards in the back
+            // Calculate angle relative to viewer to fade cards in the back
             let relAngle = ((angle + vaultRotation) % 360 + 540) % 360 - 180;
             const absRelAngle = Math.abs(relAngle);
             const isFacingAway = absRelAngle > 105;
@@ -336,11 +428,11 @@ export const ThreeDimensionalVault: React.FC<ThreeDimensionalVaultProps> = ({
             if (photoStyle === 'polaroid') {
               return (
                 <div
-                  key={`vault-card-${photo.id}`}
+                  key={photo.id}
                   onClick={() => navigateToCard(idx)}
                   className={`absolute inset-0 bg-[#FAF8F5] text-[#1c1917] p-2 pb-3.5 rounded-[4px] border border-[#e8e4dc] flex flex-col justify-between cursor-pointer transition-all duration-300 ${
                     isCardActive 
-                      ? 'shadow-[0_25px_60px_rgba(0,0,0,0.95)] ring-2 ring-[#E50914] scale-[1.03]' 
+                      ? 'shadow-[0_25px_60px_rgba(0,0,0,0.95)] ring-2 ring-[#E50914] scale-[1.04]' 
                       : 'shadow-[0_15px_35px_rgba(0,0,0,0.8)] opacity-90 hover:opacity-100'
                   }`}
                   style={{
@@ -349,7 +441,7 @@ export const ThreeDimensionalVault: React.FC<ThreeDimensionalVaultProps> = ({
                     opacity: isFacingAway ? 0.15 : 1,
                   }}
                 >
-                  <div className="w-full flex-1 overflow-hidden bg-black relative rounded-[2px] shadow-[inset_0_1px_3px_rgba(0,0,0,0.4)] border border-black/15">
+                  <div className="w-full flex-1 overflow-hidden bg-black relative rounded-[2px] shadow-[inset_0_1px_3px_rgba(0,0,0,0.4)] border border-black/15 group">
                     <AutoFitImage
                       src={photo.previewUrl}
                       alt={photo.caption}
@@ -358,9 +450,25 @@ export const ThreeDimensionalVault: React.FC<ThreeDimensionalVaultProps> = ({
                     <div className="absolute top-1.5 left-1.5 text-[8px] font-mono px-1.5 py-0.5 rounded bg-black/80 text-white/90">
                       #{idx + 1}
                     </div>
+
+                    {/* Fullscreen Expand Action Button */}
+                    {onOpenFullscreen && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenFullscreen(photo, idx);
+                        }}
+                        className="absolute top-1.5 right-1.5 p-1 rounded bg-black/70 hover:bg-[#E50914] text-white transition-colors cursor-pointer z-10"
+                        title="Expand memory fullscreen"
+                      >
+                        <Maximize2 className="w-3 h-3" />
+                      </button>
+                    )}
+
                     {isCardActive && (
                       <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-[#E50914] text-white text-[8px] font-mono font-bold tracking-wider">
-                        ACTIVE
+                        FOCUS
                       </div>
                     )}
                   </div>
@@ -384,11 +492,11 @@ export const ThreeDimensionalVault: React.FC<ThreeDimensionalVaultProps> = ({
             if (photoStyle === 'film-strip') {
               return (
                 <div
-                  key={`vault-card-${photo.id}`}
+                  key={photo.id}
                   onClick={() => navigateToCard(idx)}
                   className={`absolute inset-0 bg-[#0B0B0B] border border-[#2d2d2d] p-1.5 pb-2 rounded-lg flex flex-col justify-between text-neutral-300 cursor-pointer transition-all duration-300 ${
                     isCardActive
-                      ? 'shadow-[0_25px_60px_rgba(229,9,20,0.3)] border-[#E50914] scale-[1.03]'
+                      ? 'shadow-[0_25px_60px_rgba(229,9,20,0.3)] border-[#E50914] scale-[1.04]'
                       : 'shadow-[0_15px_40px_rgba(0,0,0,0.9)] opacity-90 hover:opacity-100'
                   }`}
                   style={{
@@ -398,13 +506,13 @@ export const ThreeDimensionalVault: React.FC<ThreeDimensionalVaultProps> = ({
                   }}
                 >
                   {/* Top sprockets */}
-                  <div className="h-2.5 bg-[#050505] px-2 flex items-center gap-1.5 overflow-hidden mb-1">
+                  <div className="h-2 bg-[#050505] px-1 flex items-center gap-1 overflow-hidden mb-1">
                     {Array.from({ length: 6 }).map((_, h) => (
-                      <div key={`v-top-${h}`} className="w-2 h-1 rounded-[1px] bg-[#1a1a1a] border border-[#333] shrink-0" />
+                      <div key={`v-top-${photo.id}-${h}`} className="w-1.5 h-1 rounded-[1px] bg-[#1a1a1a] border border-[#333] shrink-0" />
                     ))}
                   </div>
 
-                  <div className="w-full flex-1 overflow-hidden bg-black relative rounded-[2px]">
+                  <div className="w-full flex-1 overflow-hidden bg-black relative rounded-[2px] group">
                     <AutoFitImage
                       src={photo.previewUrl}
                       alt={photo.caption}
@@ -413,9 +521,25 @@ export const ThreeDimensionalVault: React.FC<ThreeDimensionalVaultProps> = ({
                     <div className="absolute top-1 left-1 text-[8px] font-mono px-1 py-0.5 rounded bg-black/80 text-white">
                       ▸ 35MM #{idx + 1}
                     </div>
+
+                    {/* Fullscreen Expand Action Button */}
+                    {onOpenFullscreen && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenFullscreen(photo, idx);
+                        }}
+                        className="absolute top-1 right-1 p-1 rounded bg-black/70 hover:bg-[#E50914] text-white transition-colors cursor-pointer z-10"
+                        title="Expand memory fullscreen"
+                      >
+                        <Maximize2 className="w-3 h-3" />
+                      </button>
+                    )}
+
                     {isCardActive && (
                       <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-[#E50914] text-white text-[8px] font-mono font-bold tracking-wider">
-                        ACTIVE
+                        FOCUS
                       </div>
                     )}
                   </div>
@@ -431,9 +555,9 @@ export const ThreeDimensionalVault: React.FC<ThreeDimensionalVaultProps> = ({
                   </div>
 
                   {/* Bottom sprockets */}
-                  <div className="h-2.5 bg-[#050505] px-2 flex items-center gap-1.5 overflow-hidden mt-1">
+                  <div className="h-2 bg-[#050505] px-1 flex items-center gap-1 overflow-hidden mt-1">
                     {Array.from({ length: 6 }).map((_, h) => (
-                      <div key={`v-bot-${h}`} className="w-2 h-1 rounded-[1px] bg-[#1a1a1a] border border-[#333] shrink-0" />
+                      <div key={`v-bot-${photo.id}-${h}`} className="w-1.5 h-1 rounded-[1px] bg-[#1a1a1a] border border-[#333] shrink-0" />
                     ))}
                   </div>
                 </div>
@@ -443,11 +567,11 @@ export const ThreeDimensionalVault: React.FC<ThreeDimensionalVaultProps> = ({
             // 3. FULLSCREEN / EDITORIAL / CINEMATIC 3D VAULT CARD
             return (
               <div
-                key={`vault-card-${photo.id}`}
+                key={photo.id}
                 onClick={() => navigateToCard(idx)}
                 className={`absolute inset-0 border shadow-2xl p-2 flex flex-col justify-between cursor-pointer transition-all duration-300 ${
                   isCardActive 
-                    ? 'ring-2 shadow-[0_25px_60px_rgba(229,9,20,0.35)] scale-[1.03]' 
+                    ? 'ring-2 shadow-[0_25px_60px_rgba(229,9,20,0.35)] scale-[1.04]' 
                     : 'opacity-90 hover:opacity-100'
                 } ${
                   photoStyle === 'fullscreen'
@@ -468,7 +592,7 @@ export const ThreeDimensionalVault: React.FC<ThreeDimensionalVaultProps> = ({
                 }}
               >
                 <div
-                  className={`w-full flex-1 overflow-hidden bg-black relative ${
+                  className={`w-full flex-1 overflow-hidden bg-black relative group ${
                     template === 'memories' ? 'rounded-2xl' : template === 'elegance' ? 'rounded-none' : 'rounded-xl'
                   }`}
                 >
@@ -487,6 +611,22 @@ export const ThreeDimensionalVault: React.FC<ThreeDimensionalVaultProps> = ({
                   >
                     VAULT #{idx + 1}
                   </div>
+
+                  {/* Fullscreen Expand Action Button */}
+                  {onOpenFullscreen && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenFullscreen(photo, idx);
+                      }}
+                      className="absolute top-1.5 right-1.5 p-1 rounded bg-black/70 hover:bg-[#E50914] text-white transition-colors cursor-pointer z-10"
+                      title="Expand memory fullscreen"
+                    >
+                      <Maximize2 className="w-3 h-3" />
+                    </button>
+                  )}
+
                   {isCardActive && (
                     <div
                       className="absolute bottom-1.5 right-1.5 px-2 py-0.5 rounded text-[8px] font-mono font-bold tracking-wider uppercase text-white shadow-md"
@@ -538,10 +678,10 @@ export const ThreeDimensionalVault: React.FC<ThreeDimensionalVaultProps> = ({
         )}
 
         {/* Dot Pagination Selector */}
-        <div className="flex items-center justify-center gap-1.5 flex-wrap max-w-xs mx-auto py-1">
-          {photos.map((_, i) => (
+        <div className="flex items-center justify-center gap-1.5 flex-wrap max-w-xs sm:max-w-md mx-auto py-1">
+          {photos.map((photo, i) => (
             <button
-              key={`dot-${i}`}
+              key={`dot-${photo.id}`}
               type="button"
               onClick={() => navigateToCard(i)}
               className={`transition-all rounded-full cursor-pointer ${
@@ -555,7 +695,7 @@ export const ThreeDimensionalVault: React.FC<ThreeDimensionalVaultProps> = ({
         </div>
 
         <p className="text-[10px] text-neutral-500 font-mono">
-          Drag horizontally or tap any card to rotate the vault
+          Hover to tilt · Drag to spin with momentum · Tap card to focus
         </p>
       </div>
     </div>

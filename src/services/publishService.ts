@@ -217,8 +217,11 @@ export async function publishExperience(
   if (!draft.recipientName || !draft.recipientName.trim()) {
     throw new Error('A recipient name is required before publishing.');
   }
-  if (!draft.photos || draft.photos.length < 3) {
-    throw new Error('At least 3 photos are required to publish a complete birthday experience.');
+  if (!draft.photos || draft.photos.length < 6) {
+    throw new Error('At least 6 photos are required to publish a complete birthday experience.');
+  }
+  if (draft.photos.length > 25) {
+    throw new Error('A maximum of 25 photos is allowed for the memory collection.');
   }
 
   const experienceId = createExperienceId();
@@ -291,6 +294,42 @@ export async function publishExperience(
     }
   }
 
+  // 2b. Upload optional secret photos to private Supabase Storage
+  let uploadedSecretPhotos: UploadedPhoto[] | undefined = undefined;
+  if (draft.secretPhotos && draft.secretPhotos.length > 0) {
+    uploadedSecretPhotos = [];
+    for (let sIdx = 0; sIdx < draft.secretPhotos.length; sIdx++) {
+      const secPhoto = draft.secretPhotos[sIdx];
+      try {
+        const { dataBase64, mimeType } = await fileOrUrlToBase64(secPhoto.file, secPhoto.previewUrl);
+        const res = await fetch('/api/upload-media', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            experienceId,
+            type: 'image',
+            dataBase64,
+            mimeType,
+            fileName: secPhoto.file?.name || `secret-${sIdx + 1}.webp`,
+          }),
+        });
+
+        if (res.ok) {
+          const uploadData = await res.json();
+          uploadedSecretPhotos.push({
+            ...secPhoto,
+            previewUrl: uploadData.url || secPhoto.previewUrl,
+          });
+        } else {
+          uploadedSecretPhotos.push(secPhoto);
+        }
+      } catch (err: any) {
+        console.warn(`Failed uploading secret photo ${sIdx + 1}:`, err?.message);
+        uploadedSecretPhotos.push(secPhoto);
+      }
+    }
+  }
+
   // 3. Upload optional MP3 directly to private Supabase Storage via signed upload URL
   let uploadedMusic: UploadedMusic | null = null;
   if (draft.music) {
@@ -354,6 +393,7 @@ export async function publishExperience(
     ...draft,
     photos: uploadedPhotos,
     surprisePhoto: uploadedSurprise,
+    secretPhotos: uploadedSecretPhotos,
     music: uploadedMusic,
   };
 

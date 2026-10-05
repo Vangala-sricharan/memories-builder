@@ -362,8 +362,8 @@ apiRouter.post('/publish', async (req, res) => {
       return;
     }
 
-    if (!draft.photos || !Array.isArray(draft.photos) || draft.photos.length < 3 || draft.photos.length > 20) {
-      res.status(400).json({ success: false, error: 'A minimum of 3 and maximum of 20 photos are required.' });
+    if (!draft.photos || !Array.isArray(draft.photos) || draft.photos.length < 6 || draft.photos.length > 25) {
+      res.status(400).json({ success: false, error: 'A minimum of 6 and maximum of 25 photos are required.' });
       return;
     }
 
@@ -417,6 +417,7 @@ apiRouter.post('/publish', async (req, res) => {
         location: p.location,
         year: p.year,
         aspect: p.aspect,
+        editState: p.editState,
       })),
       heroPhotoId: draft.heroPhotoId || draft.photos[0]?.id,
       innerCirclePhotoIds: draft.innerCirclePhotoIds && draft.innerCirclePhotoIds.length > 0
@@ -428,7 +429,17 @@ apiRouter.post('/publish', async (req, res) => {
         caption: draft.surprisePhoto.caption,
         location: draft.surprisePhoto.location,
         year: draft.surprisePhoto.year,
+        editState: draft.surprisePhoto.editState,
       } : null,
+      secretPhotos: Array.isArray(draft.secretPhotos) ? draft.secretPhotos.map((p: any) => ({
+        id: p.id,
+        previewUrl: p.previewUrl,
+        caption: p.caption,
+        location: p.location,
+        year: p.year,
+        aspect: p.aspect,
+        editState: p.editState,
+      })) : undefined,
       finalMessage: draft.finalMessage || 'Wishing you a magnificent year ahead.',
       music: draft.music ? {
         url: draft.music.url,

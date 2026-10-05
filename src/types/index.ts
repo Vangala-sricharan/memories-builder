@@ -122,6 +122,7 @@ export interface PublishedExperienceSnapshot {
   readonly heroPhotoId?: string;
   readonly innerCirclePhotoIds: readonly string[];
   readonly surprisePhoto: UploadedPhoto | null;
+  readonly secretPhotos?: readonly UploadedPhoto[];
   readonly finalMessage: string;
   readonly music: UploadedMusic | null;
   readonly tagline: string;
@@ -189,7 +190,8 @@ export interface BirthdayExperienceDraft {
   photos: UploadedPhoto[];
   heroPhotoId?: string; // ID of the photo selected as hero
   innerCirclePhotoIds: string[]; // IDs of photos selected for the Inner Circle
-  surprisePhoto?: UploadedPhoto | null; // Optional surprise photo
+  surprisePhoto?: UploadedPhoto | null; // Optional surprise photo (backwards compatible)
+  secretPhotos?: UploadedPhoto[]; // 0 to 5 separate secret photos
   finalMessage: string;
   music: UploadedMusic | null;
   tagline: string;
