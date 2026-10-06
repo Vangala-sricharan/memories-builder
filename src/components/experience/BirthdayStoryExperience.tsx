@@ -21,6 +21,8 @@ import { EmotionalReactionView } from './EmotionalReactionView';
 import { ReplayButton } from './ReplayButton';
 import { ThreeDimensionalVault } from './ThreeDimensionalVault';
 import { EasterEggModal } from '../common/EasterEggModal';
+import { ScrollReveal, ScrollRevealPhoto, ScrollRevealHeading } from '../common/ScrollReveal';
+import { FullscreenImageViewer } from '../common/FullscreenImageViewer';
 import { 
   TEMPLATES, 
   deriveThemeTokens, 
@@ -98,6 +100,9 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
 
   // Selected photo viewer index in Memory Sequence
   const [activeMemoryIndex, setActiveMemoryIndex] = useState(0);
+
+  // Fullscreen high-resolution photo viewer modal state
+  const [fullscreenViewer, setFullscreenViewer] = useState<{ photo: UploadedPhoto; index: number } | null>(null);
 
   // Customization derived properties
   const mood = customization?.mood || (template === 'memories' ? 'emotional' : template === 'celebration' ? 'energetic' : template === 'elegance' ? 'elegant' : 'cinematic');
@@ -361,81 +366,93 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
 
         <div className="max-w-3xl mx-auto space-y-6">
           {/* Act Badge & Occasion (Triple-click for Easter egg) */}
-          <div
-            onClick={handleBrandClick}
-            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border transition-all cursor-pointer hover:scale-105"
-            style={{
-              backgroundColor: tokens.surface,
-              borderColor: tokens.border,
-            }}
-            title="Memories Builder Premiere"
-          >
-            <span
-              className="w-2 h-2 rounded-full animate-ping"
-              style={{ backgroundColor: tokens.primary }}
-            />
-            <span
-              className="text-[11px] font-mono uppercase tracking-[0.25em]"
-              style={{ color: tokens.secondary }}
-            >
-              ACT I · {occasionLabel} · {mood.toUpperCase()}
-            </span>
-          </div>
-
-          <p
-            className="text-xs uppercase tracking-[0.35em] font-semibold"
-            style={{ color: tokens.primary }}
-          >
-            {tagline}
-          </p>
-
-          {/* Semantic Split Heading */}
-          <div className="space-y-2">
-            <SplitHeading
-              primaryPart="HAPPY"
-              secondaryPart="BIRTHDAY,"
-              as="h1"
-              className={`text-4xl sm:text-6xl md:text-7xl font-black tracking-tight uppercase [text-wrap:balance] ${headingFont}`}
-            />
+          <ScrollReveal variant="heading" staggerIndex={0}>
             <div
-              className={`text-4xl sm:text-6xl md:text-7xl font-black tracking-tight uppercase [text-wrap:balance] ${headingFont}`}
+              onClick={handleBrandClick}
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border transition-all cursor-pointer hover:scale-105"
+              style={{
+                backgroundColor: tokens.surface,
+                borderColor: tokens.border,
+              }}
+              title="Memories Builder Premiere"
+            >
+              <span
+                className="w-2 h-2 rounded-full animate-ping"
+                style={{ backgroundColor: tokens.primary }}
+              />
+              <span
+                className="text-[11px] font-mono uppercase tracking-[0.25em]"
+                style={{ color: tokens.secondary }}
+              >
+                ACT I · {occasionLabel} · {mood.toUpperCase()}
+              </span>
+            </div>
+          </ScrollReveal>
+
+          <ScrollReveal variant="text" staggerIndex={1}>
+            <p
+              className="text-xs uppercase tracking-[0.35em] font-semibold"
               style={{ color: tokens.primary }}
             >
-              {recipientName}
-            </div>
-          </div>
+              {tagline}
+            </p>
+          </ScrollReveal>
 
-          <p
-            className={`text-sm sm:text-base md:text-lg max-w-xl mx-auto leading-relaxed pt-2 ${bodyFont}`}
-            style={{ color: tokens.body }}
-          >
-            {openingQuote}
-          </p>
-
-          {birthdayMessage && (
-            <div className="pt-4 max-w-lg mx-auto">
+          {/* Semantic Split Heading */}
+          <ScrollReveal variant="heading" staggerIndex={2}>
+            <div className="space-y-2">
+              <SplitHeading
+                primaryPart="HAPPY"
+                secondaryPart="BIRTHDAY,"
+                as="h1"
+                className={`text-4xl sm:text-6xl md:text-7xl font-black tracking-tight uppercase [text-wrap:balance] ${headingFont}`}
+              />
               <div
-                className={`text-xs sm:text-sm leading-relaxed p-4 sm:p-5 rounded-2xl border shadow-lg ${
-                  borderStyle === 'none' ? 'border-transparent' : ''
-                }`}
-                style={{
-                  backgroundColor: tokens.surface,
-                  borderColor: borderStyle === 'none' ? 'transparent' : tokens.border,
-                  color: tokens.body,
-                }}
+                className={`text-4xl sm:text-6xl md:text-7xl font-black tracking-tight uppercase [text-wrap:balance] ${headingFont}`}
+                style={{ color: tokens.primary }}
               >
-                "{birthdayMessage}"
+                {recipientName}
               </div>
             </div>
+          </ScrollReveal>
+
+          <ScrollReveal variant="text" staggerIndex={3}>
+            <p
+              className={`text-sm sm:text-base md:text-lg max-w-xl mx-auto leading-relaxed pt-2 ${bodyFont}`}
+              style={{ color: tokens.body }}
+            >
+              {openingQuote}
+            </p>
+          </ScrollReveal>
+
+          {birthdayMessage && (
+            <ScrollReveal variant="default" staggerIndex={4}>
+              <div className="pt-4 max-w-lg mx-auto">
+                <div
+                  className={`text-xs sm:text-sm leading-relaxed p-4 sm:p-5 rounded-2xl border shadow-lg ${
+                    borderStyle === 'none' ? 'border-transparent' : ''
+                  }`}
+                  style={{
+                    backgroundColor: tokens.surface,
+                    borderColor: borderStyle === 'none' ? 'transparent' : tokens.border,
+                    color: tokens.body,
+                  }}
+                >
+                  "{birthdayMessage}"
+                </div>
+              </div>
+            </ScrollReveal>
           )}
 
           {senderName && (
-            <div
-              className="text-[11px] font-mono tracking-widest uppercase pt-2"
-              style={{ color: tokens.muted }}
-            >
-              PRESENTED WITH LOVE BY <span style={{ color: tokens.primary }}>{senderName}</span>
-            </div>
+            <ScrollReveal variant="text" staggerIndex={5}>
+              <div
+                className="text-[11px] font-mono tracking-widest uppercase pt-2"
+                style={{ color: tokens.muted }}
+              >
+                PRESENTED WITH LOVE BY <span style={{ color: tokens.primary }}>{senderName}</span>
+              </div>
+            </ScrollReveal>
           )}
         </div>
       </section>
@@ -444,45 +461,52 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
       {/* 2. SECTION 2 — HERO IMAGE                               */}
       {/* ======================================================== */}
       {showChapters && heroPhoto && (
-        <CinematicChapterCard
-          number="01 / 06"
-          act="ACT I"
-          title={chapters.chapter1 || 'THE BEGINNING'}
-          template={template}
-          tokens={tokens}
-          headingFont={headingFont}
-        />
+        <ScrollReveal variant="heading">
+          <CinematicChapterCard
+            number="01 / 06"
+            act="ACT I"
+            title={chapters.chapter1 || 'THE BEGINNING'}
+            template={template}
+            tokens={tokens}
+            headingFont={headingFont}
+          />
+        </ScrollReveal>
       )}
 
       {heroPhoto && (
         <section id="sec-hero" className="relative px-4">
           <div className="max-w-5xl mx-auto">
-            <div className="flex items-center justify-between text-xs font-mono mb-3 uppercase tracking-wider">
-              <span className="flex items-center gap-2">
-                <span
-                  className="w-1.5 h-1.5 rounded-full"
-                  style={{ backgroundColor: tokens.primary }}
-                />
-                <span style={{ color: tokens.secondary }}>
-                  ACT II · {template === 'memories' ? 'SIGNATURE MEMORY' : template === 'elegance' ? 'PORTFOLIO HIGHLIGHT' : 'HERO SPOTLIGHT'}
+            <ScrollReveal variant="text">
+              <div className="flex items-center justify-between text-xs font-mono mb-3 uppercase tracking-wider">
+                <span className="flex items-center gap-2">
+                  <span
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{ backgroundColor: tokens.primary }}
+                  />
+                  <span style={{ color: tokens.secondary }}>
+                    ACT II · {template === 'memories' ? 'SIGNATURE MEMORY' : template === 'elegance' ? 'PORTFOLIO HIGHLIGHT' : 'HERO SPOTLIGHT'}
+                  </span>
                 </span>
-              </span>
-              <span style={{ color: tokens.muted }}>
-                STYLE: {photoStyle.toUpperCase()} · FOCUS: {heroFocus.toUpperCase()}
-              </span>
-            </div>
+                <span style={{ color: tokens.muted }}>
+                  STYLE: {photoStyle.toUpperCase()} · FOCUS: {heroFocus.toUpperCase()}
+                </span>
+              </div>
+            </ScrollReveal>
 
-            <HeroPhotoFrame
-              photo={heroPhoto}
-              photoStyle={photoStyle}
-              template={template}
-              tokens={tokens}
-              headingFont={headingFont}
-              bodyFont={bodyFont}
-              heroFocus={heroFocus}
-              glowStyle={glowStyle}
-              borderStyle={borderStyle}
-            />
+            <ScrollRevealPhoto cursorHint="expand">
+              <HeroPhotoFrame
+                photo={heroPhoto}
+                photoStyle={photoStyle}
+                template={template}
+                tokens={tokens}
+                headingFont={headingFont}
+                bodyFont={bodyFont}
+                heroFocus={heroFocus}
+                glowStyle={glowStyle}
+                borderStyle={borderStyle}
+                onOpenFullscreen={() => setFullscreenViewer({ photo: heroPhoto, index: 0 })}
+              />
+            </ScrollRevealPhoto>
           </div>
         </section>
       )}
@@ -491,14 +515,16 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
       {/* CHAPTER 02 — THE MEMORIES                                */}
       {/* ======================================================== */}
       {showChapters && (
-        <CinematicChapterCard
-          number="02 / 06"
-          act="ACT II"
-          title={chapters.chapterTwo || 'THE MEMORIES'}
-          template={template}
-          tokens={tokens}
-          headingFont={headingFont}
-        />
+        <ScrollReveal variant="heading">
+          <CinematicChapterCard
+            number="02 / 06"
+            act="ACT II"
+            title={chapters.chapterTwo || 'THE MEMORIES'}
+            template={template}
+            tokens={tokens}
+            headingFont={headingFont}
+          />
+        </ScrollReveal>
       )}
 
       {/* ======================================================== */}
@@ -506,58 +532,62 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
       {/* ======================================================== */}
       <section id="sec-memories" className="relative px-4">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <span
-              className="text-xs font-mono tracking-[0.25em] uppercase font-semibold block mb-2"
-              style={{ color: tokens.primary }}
-            >
-              ACT II · {template === 'memories' ? 'CHRONICLES' : template === 'celebration' ? 'HIGHLIGHT REEL' : 'THE COMPLETE ARCHIVE'}
-            </span>
-            <SplitHeading
-              primaryPart={memoriesSplit.primary}
-              secondaryPart={memoriesSplit.secondary}
-              as="h2"
-              className={`text-3xl sm:text-4xl md:text-5xl font-bold mb-3 ${headingFont}`}
-            />
-            <p
-              className="text-xs sm:text-sm max-w-lg mx-auto leading-relaxed"
-              style={{ color: tokens.muted }}
-            >
-              Every chapter, laughter, and wild adventure preserved in sequence ({photos.length} total photographs).
-            </p>
-
-            {storyNarrative && (
-              <div
-                className="mt-4 max-w-xl mx-auto p-4 sm:p-5 rounded-2xl border shadow-lg"
-                style={{
-                  backgroundColor: tokens.surface,
-                  borderColor: borderStyle === 'none' ? 'transparent' : tokens.border,
-                }}
+          <ScrollReveal variant="heading">
+            <div className="text-center mb-12">
+              <span
+                className="text-xs font-mono tracking-[0.25em] uppercase font-semibold block mb-2"
+                style={{ color: tokens.primary }}
               >
-                <p
-                  className={`text-xs sm:text-sm leading-relaxed ${bodyFont}`}
-                  style={{ color: tokens.body }}
+                ACT II · {template === 'memories' ? 'CHRONICLES' : template === 'celebration' ? 'HIGHLIGHT REEL' : 'THE COMPLETE ARCHIVE'}
+              </span>
+              <SplitHeading
+                primaryPart={memoriesSplit.primary}
+                secondaryPart={memoriesSplit.secondary}
+                as="h2"
+                className={`text-3xl sm:text-4xl md:text-5xl font-bold mb-3 ${headingFont}`}
+              />
+              <p
+                className="text-xs sm:text-sm max-w-lg mx-auto leading-relaxed"
+                style={{ color: tokens.muted }}
+              >
+                Every chapter, laughter, and wild adventure preserved in sequence ({photos.length} total photographs).
+              </p>
+
+              {storyNarrative && (
+                <div
+                  className="mt-4 max-w-xl mx-auto p-4 sm:p-5 rounded-2xl border shadow-lg"
+                  style={{
+                    backgroundColor: tokens.surface,
+                    borderColor: borderStyle === 'none' ? 'transparent' : tokens.border,
+                  }}
                 >
-                  "{storyNarrative}"
-                </p>
-              </div>
-            )}
-          </div>
+                  <p
+                    className={`text-xs sm:text-sm leading-relaxed ${bodyFont}`}
+                    style={{ color: tokens.body }}
+                  >
+                    "{storyNarrative}"
+                  </p>
+                </div>
+              )}
+            </div>
+          </ScrollReveal>
 
           {/* Active Photo Presentation Component */}
-          <PhotoPresentationView
-            photoStyle={photoStyle}
-            template={template}
-            photos={photos}
-            tokens={tokens}
-            headingFont={headingFont}
-            bodyFont={bodyFont}
-            heroFocus={heroFocus}
-            activeMemoryIndex={activeMemoryIndex}
-            onSelectMemory={setActiveMemoryIndex}
-            glowStyle={glowStyle}
-            borderStyle={borderStyle}
-          />
+          <ScrollRevealPhoto>
+            <PhotoPresentationView
+              photoStyle={photoStyle}
+              template={template}
+              photos={photos}
+              tokens={tokens}
+              headingFont={headingFont}
+              bodyFont={bodyFont}
+              heroFocus={heroFocus}
+              activeMemoryIndex={activeMemoryIndex}
+              onSelectMemory={setActiveMemoryIndex}
+              glowStyle={glowStyle}
+              borderStyle={borderStyle}
+            />
+          </ScrollRevealPhoto>
         </div>
       </section>
 
@@ -579,14 +609,16 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
       {/* CHAPTER 03 — THE PEOPLE                                 */}
       {/* ======================================================== */}
       {showChapters && innerCirclePhotos.length > 0 && (
-        <CinematicChapterCard
-          number="03 / 06"
-          act="ACT III"
-          title={chapters.chapter3 || 'THE PEOPLE'}
-          template={template}
-          tokens={tokens}
-          headingFont={headingFont}
-        />
+        <ScrollReveal variant="heading">
+          <CinematicChapterCard
+            number="03 / 06"
+            act="ACT III"
+            title={chapters.chapter3 || 'THE PEOPLE'}
+            template={template}
+            tokens={tokens}
+            headingFont={headingFont}
+          />
+        </ScrollReveal>
       )}
 
       {/* ======================================================== */}
@@ -595,26 +627,28 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
       {innerCirclePhotos.length > 0 && (
         <section id="sec-circle" className="relative px-4">
           <div className="max-w-5xl mx-auto">
-            <div className="text-center mb-10">
-              <span
-                className="text-xs font-mono tracking-[0.25em] uppercase font-semibold block mb-2"
-                style={{ color: tokens.primary }}
-              >
-                ACT III · {template === 'celebration' ? 'THE CREW' : template === 'elegance' ? 'PRIVATE COLLECTION' : 'INTIMATE CONNECTIONS'}
-              </span>
-              <SplitHeading
-                primaryPart={innerCircleSplit.primary}
-                secondaryPart={innerCircleSplit.secondary}
-                as="h2"
-                className={`text-3xl sm:text-4xl font-bold mb-3 ${headingFont}`}
-              />
-              <p
-                className={`text-xs sm:text-sm max-w-lg mx-auto leading-relaxed ${bodyFont}`}
-                style={{ color: tokens.body }}
-              >
-                {innerCircleIntro || 'A curated constellation of the most cherished milestones and closest companions.'}
-              </p>
-            </div>
+            <ScrollReveal variant="heading">
+              <div className="text-center mb-10">
+                <span
+                  className="text-xs font-mono tracking-[0.25em] uppercase font-semibold block mb-2"
+                  style={{ color: tokens.primary }}
+                >
+                  ACT III · {template === 'celebration' ? 'THE CREW' : template === 'elegance' ? 'PRIVATE COLLECTION' : 'INTIMATE CONNECTIONS'}
+                </span>
+                <SplitHeading
+                  primaryPart={innerCircleSplit.primary}
+                  secondaryPart={innerCircleSplit.secondary}
+                  as="h2"
+                  className={`text-3xl sm:text-4xl font-bold mb-3 ${headingFont}`}
+                />
+                <p
+                  className={`text-xs sm:text-sm max-w-lg mx-auto leading-relaxed ${bodyFont}`}
+                  style={{ color: tokens.body }}
+                >
+                  {innerCircleIntro || 'A curated constellation of the most cherished milestones and closest companions.'}
+                </p>
+              </div>
+            </ScrollReveal>
 
             {/* Circular / Gallery Composition Grid */}
             {photoStyle === 'polaroid' ? (
@@ -623,41 +657,48 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
                   const angles = [-2.2, 1.8, -1.5, 2.4, -1.8, 1.6];
                   const angle = angles[idx % angles.length];
                   return (
-                    <div
+                    <ScrollRevealPhoto
                       key={photo.id}
-                      className="relative group transition-all duration-300"
+                      staggerIndex={idx}
+                      cursorHint="expand"
+                      className="cursor-pointer"
                     >
-                      {/* Mini top tape */}
-                      <div 
-                        className="absolute -top-2 left-1/2 -translate-x-1/2 w-12 h-4 bg-[#eae5d8]/80 border border-black/10 shadow-xs z-10 rounded-[1px] pointer-events-none transform -rotate-1"
-                        style={{ clipPath: 'polygon(0 0, 100% 4%, 96% 100%, 4% 96%)' }}
-                      />
                       <div
-                        className="bg-[#FAF8F5] text-[#1c1917] p-3 pb-6 rounded-[3px] shadow-[0_12px_28px_rgba(0,0,0,0.5),0_2px_8px_rgba(0,0,0,0.3)] border border-[#e8e4dc] transition-all duration-300 group-hover:scale-105 group-hover:rotate-0 group-hover:z-20 group-hover:shadow-2xl"
-                        style={{ transform: `rotate(${angle}deg)` }}
+                        onClick={() => setFullscreenViewer({ photo, index: idx })}
+                        className="relative group transition-all duration-300"
                       >
-                        <div className="aspect-square overflow-hidden bg-black mb-2.5 relative rounded-[2px] shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)] border border-black/15">
-                          <AutoFitImage
-                            src={photo.previewUrl}
-                            alt={photo.caption}
-                            focalPoint={heroFocus as any}
-                            className="group-hover:scale-105 transition-transform duration-500"
-                          />
-                          <div className="absolute top-1.5 left-1.5 text-[8px] font-mono px-1.5 py-0.5 rounded bg-black/70 text-white/90">
-                            CIRCLE #{idx + 1}
+                        {/* Mini top tape */}
+                        <div 
+                          className="absolute -top-2 left-1/2 -translate-x-1/2 w-12 h-4 bg-[#eae5d8]/80 border border-black/10 shadow-xs z-10 rounded-[1px] pointer-events-none transform -rotate-1"
+                          style={{ clipPath: 'polygon(0 0, 100% 4%, 96% 100%, 4% 96%)' }}
+                        />
+                        <div
+                          className="bg-[#FAF8F5] text-[#1c1917] p-3 pb-6 rounded-[3px] shadow-[0_12px_28px_rgba(0,0,0,0.5),0_2px_8px_rgba(0,0,0,0.3)] border border-[#e8e4dc] transition-all duration-300 group-hover:scale-105 group-hover:rotate-0 group-hover:z-20 group-hover:shadow-2xl"
+                          style={{ transform: `rotate(${angle}deg)` }}
+                        >
+                          <div className="aspect-square overflow-hidden bg-black mb-2.5 relative rounded-[2px] shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)] border border-black/15">
+                            <AutoFitImage
+                              src={photo.previewUrl}
+                              alt={photo.caption}
+                              focalPoint={heroFocus as any}
+                              className="group-hover:scale-105 transition-transform duration-500"
+                            />
+                            <div className="absolute top-1.5 left-1.5 text-[8px] font-mono px-1.5 py-0.5 rounded bg-black/70 text-white/90">
+                              CIRCLE #{idx + 1}
+                            </div>
+                          </div>
+                          <div 
+                            className="font-serif italic text-xs font-bold text-[#1c1917] truncate leading-tight"
+                            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+                          >
+                            {photo.caption}
+                          </div>
+                          <div className="text-[10px] font-mono text-[#78716c] truncate mt-0.5">
+                            {photo.location || photo.year || 'Cherished Memory'}
                           </div>
                         </div>
-                        <div 
-                          className="font-serif italic text-xs font-bold text-[#1c1917] truncate leading-tight"
-                          style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-                        >
-                          {photo.caption}
-                        </div>
-                        <div className="text-[10px] font-mono text-[#78716c] truncate mt-0.5">
-                          {photo.location || photo.year || 'Cherished Memory'}
-                        </div>
                       </div>
-                    </div>
+                    </ScrollRevealPhoto>
                   );
                 })}
               </div>
@@ -670,29 +711,36 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 py-1">
                   {innerCirclePhotos.map((photo, idx) => (
-                    <div
+                    <ScrollRevealPhoto
                       key={photo.id}
-                      className="border border-[#282828] bg-[#101010] p-2 rounded-lg group hover:border-[#E50914] transition-all"
+                      staggerIndex={idx}
+                      cursorHint="expand"
+                      className="cursor-pointer"
                     >
-                      <div className="flex items-center justify-between text-[9px] font-mono text-neutral-400 mb-1 px-1">
-                        <span style={{ color: tokens.primary }}>▸ 35MM · C{idx + 1}</span>
-                        <span>CIRCLE</span>
+                      <div
+                        onClick={() => setFullscreenViewer({ photo, index: idx })}
+                        className="border border-[#282828] bg-[#101010] p-2 rounded-lg group hover:border-[#E50914] transition-all"
+                      >
+                        <div className="flex items-center justify-between text-[9px] font-mono text-neutral-400 mb-1 px-1">
+                          <span style={{ color: tokens.primary }}>▸ 35MM · C{idx + 1}</span>
+                          <span>CIRCLE</span>
+                        </div>
+                        <div className="aspect-[4/3] overflow-hidden bg-black rounded relative mb-2">
+                          <AutoFitImage
+                            src={photo.previewUrl}
+                            alt={photo.caption}
+                            focalPoint={heroFocus as any}
+                            className="group-hover:scale-105 transition-transform duration-500"
+                          />
+                        </div>
+                        <div className="text-xs font-semibold text-white truncate px-1">
+                          {photo.caption}
+                        </div>
+                        <div className="text-[10px] font-mono text-neutral-400 truncate px-1">
+                          {photo.location || photo.year || 'Key Frame'}
+                        </div>
                       </div>
-                      <div className="aspect-[4/3] overflow-hidden bg-black rounded relative mb-2">
-                        <AutoFitImage
-                          src={photo.previewUrl}
-                          alt={photo.caption}
-                          focalPoint={heroFocus as any}
-                          className="group-hover:scale-105 transition-transform duration-500"
-                        />
-                      </div>
-                      <div className="text-xs font-semibold text-white truncate px-1">
-                        {photo.caption}
-                      </div>
-                      <div className="text-[10px] font-mono text-neutral-400 truncate px-1">
-                        {photo.location || photo.year || 'Key Frame'}
-                      </div>
-                    </div>
+                    </ScrollRevealPhoto>
                   ))}
                 </div>
                 <div className="h-3.5 bg-[#0C0C0C] border-t border-[#202020] px-3 flex items-center gap-3 overflow-hidden select-none">
@@ -704,58 +752,65 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {innerCirclePhotos.map((photo, idx) => (
-                  <div
+                  <ScrollRevealPhoto
                     key={photo.id}
-                    className={`border p-4 transition-all duration-300 group hover:-translate-y-1 shadow-lg ${
-                      photoStyle === 'fullscreen'
-                        ? 'rounded-2xl border-2'
-                        : template === 'memories'
-                        ? 'rounded-3xl'
-                        : template === 'elegance'
-                        ? 'rounded-lg border-white/10'
-                        : 'rounded-2xl'
-                    }`}
-                    style={{
-                      backgroundColor: tokens.surface,
-                      borderColor: borderStyle === 'none' ? 'transparent' : tokens.border,
-                    }}
+                    staggerIndex={idx}
+                    cursorHint="expand"
+                    className="cursor-pointer"
                   >
                     <div
-                      className={`aspect-square overflow-hidden bg-black mb-3 relative ${
-                        template === 'memories' ? 'rounded-2xl' : template === 'elegance' ? 'rounded-sm' : 'rounded-xl'
+                      onClick={() => setFullscreenViewer({ photo, index: idx })}
+                      className={`border p-4 transition-all duration-300 group hover:-translate-y-1 shadow-lg ${
+                        photoStyle === 'fullscreen'
+                          ? 'rounded-2xl border-2'
+                          : template === 'memories'
+                          ? 'rounded-3xl'
+                          : template === 'elegance'
+                          ? 'rounded-lg border-white/10'
+                          : 'rounded-2xl'
                       }`}
+                      style={{
+                        backgroundColor: tokens.surface,
+                        borderColor: borderStyle === 'none' ? 'transparent' : tokens.border,
+                      }}
                     >
-                      <AutoFitImage
-                        src={photo.previewUrl}
-                        alt={photo.caption}
-                        focalPoint={heroFocus as any}
-                        className="group-hover:scale-105 transition-transform duration-500"
-                      />
                       <div
-                        className="absolute top-2 left-2 text-[10px] font-mono px-2 py-0.5 rounded border"
-                        style={{
-                          backgroundColor: 'rgba(0,0,0,0.8)',
-                          borderColor: tokens.border,
-                          color: tokens.secondary,
-                        }}
+                        className={`aspect-square overflow-hidden bg-black mb-3 relative ${
+                          template === 'memories' ? 'rounded-2xl' : template === 'elegance' ? 'rounded-sm' : 'rounded-xl'
+                        }`}
                       >
-                        CIRCLE #{idx + 1}
+                        <AutoFitImage
+                          src={photo.previewUrl}
+                          alt={photo.caption}
+                          focalPoint={heroFocus as any}
+                          className="group-hover:scale-105 transition-transform duration-500"
+                        />
+                        <div
+                          className="absolute top-2 left-2 text-[10px] font-mono px-2 py-0.5 rounded border"
+                          style={{
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            borderColor: tokens.border,
+                            color: tokens.secondary,
+                          }}
+                        >
+                          CIRCLE #{idx + 1}
+                        </div>
+                      </div>
+
+                      <div
+                        className="text-sm font-semibold truncate mb-1"
+                        style={{ color: tokens.secondary }}
+                      >
+                        {photo.caption}
+                      </div>
+                      <div
+                        className="text-[11px] font-mono truncate"
+                        style={{ color: tokens.muted }}
+                      >
+                        {photo.location || photo.year || 'Timeless Memory'}
                       </div>
                     </div>
-
-                    <div
-                      className="text-sm font-semibold truncate mb-1"
-                      style={{ color: tokens.secondary }}
-                    >
-                      {photo.caption}
-                    </div>
-                    <div
-                      className="text-[11px] font-mono truncate"
-                      style={{ color: tokens.muted }}
-                    >
-                      {photo.location || photo.year || 'Timeless Memory'}
-                    </div>
-                  </div>
+                  </ScrollRevealPhoto>
                 ))}
               </div>
             )}
@@ -767,14 +822,16 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
       {/* CHAPTER 04 — THE VAULT                                  */}
       {/* ======================================================== */}
       {showChapters && (
-        <CinematicChapterCard
-          number="04 / 06"
-          act="ACT IV"
-          title={chapters.chapter4 || 'THE VAULT'}
-          template={template}
-          tokens={tokens}
-          headingFont={headingFont}
-        />
+        <ScrollReveal variant="heading">
+          <CinematicChapterCard
+            number="04 / 06"
+            act="ACT IV"
+            title={chapters.chapter4 || 'THE VAULT'}
+            template={template}
+            tokens={tokens}
+            headingFont={headingFont}
+          />
+        </ScrollReveal>
       )}
 
       {/* ======================================================== */}
@@ -789,197 +846,259 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
         }}
       >
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-10">
-            <span
-              className="text-xs font-mono tracking-[0.25em] uppercase font-semibold block mb-2"
-              style={{ color: tokens.primary }}
-            >
-              ACT V · {template === 'memories' ? 'ARCHIVAL CAROUSEL' : template === 'elegance' ? 'SALON GALLERY' : 'THE DIGITAL SANCTUARY'}
-            </span>
-            <SplitHeading
-              primaryPart={vaultSplit.primary}
-              secondaryPart={vaultSplit.secondary}
-              as="h2"
-              className={`text-3xl sm:text-5xl font-black mb-3 ${headingFont}`}
+          <ScrollReveal variant="heading">
+            <div className="text-center mb-10">
+              <span
+                className="text-xs font-mono tracking-[0.25em] uppercase font-semibold block mb-2"
+                style={{ color: tokens.primary }}
+              >
+                ACT V · {template === 'memories' ? 'ARCHIVAL CAROUSEL' : template === 'elegance' ? 'SALON GALLERY' : 'THE DIGITAL SANCTUARY'}
+              </span>
+              <SplitHeading
+                primaryPart={vaultSplit.primary}
+                secondaryPart={vaultSplit.secondary}
+                as="h2"
+                className={`text-3xl sm:text-5xl font-black mb-3 ${headingFont}`}
+              />
+              <p
+                className={`text-xs sm:text-sm max-w-lg mx-auto leading-relaxed ${bodyFont}`}
+                style={{ color: tokens.body }}
+              >
+                {vaultIntro || 'First viewed as memories. Now preserved eternally in a rotating 3D archival vault.'}
+              </p>
+            </div>
+          </ScrollReveal>
+
+          {/* Dynamic 3D Vault with Adaptive Geometry for 6 to 25 Photos & Fullscreen Expand */}
+          <ScrollReveal variant="vault">
+            <ThreeDimensionalVault
+              photos={photos}
+              photoStyle={photoStyle}
+              template={template}
+              heroFocus={heroFocus}
+              glowStyle={glowStyle}
+              borderStyle={borderStyle}
+              tokens={tokens}
+              headingFont={headingFont}
+              bodyFont={bodyFont}
+              vaultIntro={vaultIntro}
+              onOpenFullscreen={(photo, idx) => setFullscreenViewer({ photo, index: idx })}
             />
-            <p
-              className={`text-xs sm:text-sm max-w-lg mx-auto leading-relaxed ${bodyFont}`}
-              style={{ color: tokens.body }}
-            >
-              {vaultIntro || 'First viewed as memories. Now preserved eternally in a rotating 3D archival vault.'}
-            </p>
-
-          </div>
-
-          {/* Dynamic 3D Vault with Adaptive Geometry for 3 to 20 Photos */}
-          <ThreeDimensionalVault
-            photos={photos}
-            photoStyle={photoStyle}
-            template={template}
-            heroFocus={heroFocus}
-            glowStyle={glowStyle}
-            borderStyle={borderStyle}
-            tokens={tokens}
-            headingFont={headingFont}
-            bodyFont={bodyFont}
-            vaultIntro={vaultIntro}
-          />
+          </ScrollReveal>
         </div>
       </section>
 
       {/* Secret Reveal (Feature 1) */}
       {secretPhoto && (
-        <div id="sec-secret">
-          <SecretRevealView
-            photo={secretPhoto}
-            template={template}
-            photoStyle={photoStyle}
-            tokens={tokens}
-            headingFont={headingFont}
-            bodyFont={bodyFont}
-            heroFocus={heroFocus}
-            glowStyle={glowStyle}
-          />
-        </div>
+        <ScrollReveal once={true} cursorHint="secret">
+          <div id="sec-secret">
+            <SecretRevealView
+              photo={secretPhoto}
+              template={template}
+              photoStyle={photoStyle}
+              tokens={tokens}
+              headingFont={headingFont}
+              bodyFont={bodyFont}
+              heroFocus={heroFocus}
+              glowStyle={glowStyle}
+            />
+          </div>
+        </ScrollReveal>
       )}
 
       {/* Surprise Lock (Feature 5) */}
       {showSurpriseLock && (
-        <SurpriseLockView
-          template={template}
-          tokens={tokens}
-          headingFont={headingFont}
-          bodyFont={bodyFont}
-        />
+        <ScrollReveal once={true}>
+          <SurpriseLockView
+            template={template}
+            tokens={tokens}
+            headingFont={headingFont}
+            bodyFont={bodyFont}
+          />
+        </ScrollReveal>
       )}
 
       {/* Chapter 05 — THE SURPRISE */}
       {showChapters && surprisePhoto && (
-        <CinematicChapterCard
-          number="05 / 06"
-          act="ACT V"
-          title={chapters.chapter5 || 'THE SURPRISE'}
-          template={template}
-          tokens={tokens}
-          headingFont={headingFont}
-        />
+        <ScrollReveal variant="heading">
+          <CinematicChapterCard
+            number="05 / 06"
+            act="ACT V"
+            title={chapters.chapter5 || 'THE SURPRISE'}
+            template={template}
+            tokens={tokens}
+            headingFont={headingFont}
+          />
+        </ScrollReveal>
       )}
 
       {/* ======================================================== */}
       {/* 6. SECTION 6 — OPTIONAL SURPRISE IMAGE                  */}
       {/* ======================================================== */}
       {surprisePhoto && (
-        <section id="sec-surprise" className="relative px-4">
-          <div className="max-w-4xl mx-auto">
-            <div
-              className={`border p-8 sm:p-14 text-center relative overflow-hidden shadow-2xl ${
-                template === 'memories' ? 'rounded-3xl' : template === 'elegance' ? 'rounded-none border-white/20' : 'rounded-3xl'
-              }`}
-              style={{
-                backgroundColor: tokens.surface,
-                borderColor: borderStyle === 'none' ? 'transparent' : tokens.borderHighlight,
-              }}
-            >
-              {glowStyle !== 'none' && (
-                <div
-                  className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full blur-[100px] pointer-events-none"
-                  style={{ backgroundColor: tokens.glowStrong }}
-                />
-              )}
+        <ScrollReveal once={true}>
+          <section id="sec-surprise" className="relative px-4">
+            <div className="max-w-4xl mx-auto">
+              <div
+                className={`border p-8 sm:p-14 text-center relative overflow-hidden shadow-2xl ${
+                  template === 'memories' ? 'rounded-3xl' : template === 'elegance' ? 'rounded-none border-white/20' : 'rounded-3xl'
+                }`}
+                style={{
+                  backgroundColor: tokens.surface,
+                  borderColor: borderStyle === 'none' ? 'transparent' : tokens.borderHighlight,
+                }}
+              >
+                {glowStyle !== 'none' && (
+                  <div
+                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full blur-[100px] pointer-events-none"
+                    style={{ backgroundColor: tokens.glowStrong }}
+                  />
+                )}
 
-              <div className="relative z-10 space-y-5">
-                <div
-                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs font-mono uppercase tracking-widest"
-                  style={{
-                    backgroundColor: tokens.surfaceHighlight,
-                    borderColor: tokens.borderHighlight,
-                    color: tokens.primary,
-                  }}
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>ACT VI · CONFIDENTIAL REVEAL</span>
-                </div>
-
-                <SplitHeading
-                  primaryPart={surpriseSplit.primary}
-                  secondaryPart={surpriseSplit.secondary}
-                  as="h2"
-                  className={`text-3xl sm:text-5xl font-black ${headingFont}`}
-                />
-
-                <p
-                  className={`text-xs sm:text-sm max-w-md mx-auto leading-relaxed ${bodyFont}`}
-                  style={{ color: tokens.body }}
-                >
-                  {surpriseText || 'A secluded memory kept hidden until this very moment.'}
-                </p>
-
-                {!surpriseRevealed ? (
-                  <div className="py-6">
-                    <button
-                      type="button"
-                      onClick={() => setSurpriseRevealed(true)}
-                      className="px-8 py-4 rounded-xl text-xs sm:text-sm font-bold tracking-[0.2em] uppercase transition-all shadow-xl hover:scale-105 cursor-pointer inline-flex items-center gap-2"
-                      style={{
-                        backgroundColor: tokens.primary,
-                        color: '#FFFFFF',
-                        boxShadow: glowStyle !== 'none' ? `0 12px 28px ${tokens.glowStrong}` : undefined,
-                      }}
-                    >
-                      <Unlock className="w-4 h-4" />
-                      <span>UNLOCK SURPRISE MEMORY</span>
-                    </button>
+                <div className="relative z-10 space-y-5">
+                  <div
+                    className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs font-mono uppercase tracking-widest"
+                    style={{
+                      backgroundColor: tokens.surfaceHighlight,
+                      borderColor: tokens.borderHighlight,
+                      color: tokens.primary,
+                    }}
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>ACT VI · CONFIDENTIAL REVEAL</span>
                   </div>
-                ) : (
-                  <div className="animate-fade-in pt-4 max-w-2xl mx-auto space-y-4">
-                    {photoStyle === 'polaroid' ? (
-                      <div className="relative max-w-md mx-auto py-2">
-                        {/* Tape accent */}
+
+                  <SplitHeading
+                    primaryPart={surpriseSplit.primary}
+                    secondaryPart={surpriseSplit.secondary}
+                    as="h2"
+                    className={`text-3xl sm:text-5xl font-black ${headingFont}`}
+                  />
+
+                  <p
+                    className={`text-xs sm:text-sm max-w-md mx-auto leading-relaxed ${bodyFont}`}
+                    style={{ color: tokens.body }}
+                  >
+                    {surpriseText || 'A secluded memory kept hidden until this very moment.'}
+                  </p>
+
+                  {!surpriseRevealed ? (
+                    <div className="py-6">
+                      <button
+                        type="button"
+                        onClick={() => setSurpriseRevealed(true)}
+                        className="px-8 py-4 rounded-xl text-xs sm:text-sm font-bold tracking-[0.2em] uppercase transition-all shadow-xl hover:scale-105 cursor-pointer inline-flex items-center gap-2"
+                        style={{
+                          backgroundColor: tokens.primary,
+                          color: '#FFFFFF',
+                          boxShadow: glowStyle !== 'none' ? `0 12px 28px ${tokens.glowStrong}` : undefined,
+                        }}
+                      >
+                        <Unlock className="w-4 h-4" />
+                        <span>UNLOCK SURPRISE MEMORY</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="animate-fade-in pt-4 max-w-2xl mx-auto space-y-4">
+                      {photoStyle === 'polaroid' ? (
                         <div 
-                          className="absolute -top-2 left-1/2 -translate-x-1/2 w-20 h-5 bg-[#eae5d8]/80 border border-black/10 shadow-xs z-10 rounded-[1px] pointer-events-none transform -rotate-1"
-                          style={{ clipPath: 'polygon(0 0, 100% 4%, 96% 100%, 4% 96%)' }}
-                        />
-                        <div className="bg-[#FAF8F5] text-[#1c1917] p-4 pb-8 rounded-[3px] shadow-[0_20px_40px_rgba(0,0,0,0.85)] border border-[#e8e4dc]">
-                          <div className="aspect-[4/3] overflow-hidden bg-black mb-3 relative rounded-[2px] shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)] border border-black/20">
+                          className="relative max-w-md mx-auto py-2 cursor-pointer"
+                          data-cursor="expand"
+                          onClick={() => setFullscreenViewer({ photo: surprisePhoto, index: photos.length })}
+                          title="Click to view full screen"
+                        >
+                          {/* Tape accent */}
+                          <div 
+                            className="absolute -top-2 left-1/2 -translate-x-1/2 w-20 h-5 bg-[#eae5d8]/80 border border-black/10 shadow-xs z-10 rounded-[1px] pointer-events-none transform -rotate-1"
+                            style={{ clipPath: 'polygon(0 0, 100% 4%, 96% 100%, 4% 96%)' }}
+                          />
+                          <div className="bg-[#FAF8F5] text-[#1c1917] p-4 pb-8 rounded-[3px] shadow-[0_20px_40px_rgba(0,0,0,0.85)] border border-[#e8e4dc]">
+                            <div className="aspect-[4/3] overflow-hidden bg-black mb-3 relative rounded-[2px] shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)] border border-black/20">
+                              <AutoFitImage
+                                src={surprisePhoto.previewUrl}
+                                alt={surprisePhoto.caption}
+                                focalPoint={heroFocus as any}
+                              />
+                              <div className="absolute top-2 left-2 text-[9px] font-mono px-2 py-0.5 rounded bg-black/70 text-white/90">
+                                SURPRISE REVEALED
+                              </div>
+                            </div>
+                            <div className="text-left space-y-1">
+                              <div className="text-[10px] font-mono text-[#78716c] uppercase tracking-wider">
+                                EXCLUSIVE MEMORY
+                              </div>
+                              <h4 
+                                className="text-lg sm:text-xl font-serif italic font-bold text-[#1c1917]"
+                                style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+                              >
+                                {surprisePhoto.caption}
+                              </h4>
+                            </div>
+                          </div>
+                        </div>
+                      ) : photoStyle === 'film-strip' ? (
+                        <div 
+                          className="bg-[#090909] border border-[#282828] rounded-xl overflow-hidden shadow-2xl cursor-pointer"
+                          data-cursor="expand"
+                          onClick={() => setFullscreenViewer({ photo: surprisePhoto, index: photos.length })}
+                          title="Click to view full screen"
+                        >
+                          <div className="h-6 bg-[#0E0E0E] border-b border-[#222222] px-3 flex items-center justify-between overflow-hidden">
+                            <div className="flex items-center gap-3">
+                              {Array.from({ length: 14 }).map((_, i) => (
+                                <div key={`s-top-${i}`} className="w-3 h-1.5 rounded-[1px] bg-[#1a1a1a] border border-[#333] shrink-0" />
+                              ))}
+                            </div>
+                            <span className="text-[9px] font-mono text-neutral-400 uppercase">
+                              70MM VAULT · SPECIAL REVEAL
+                            </span>
+                          </div>
+                          <div className="relative aspect-[16/9] w-full overflow-hidden bg-black">
                             <AutoFitImage
                               src={surprisePhoto.previewUrl}
                               alt={surprisePhoto.caption}
                               focalPoint={heroFocus as any}
                             />
-                            <div className="absolute top-2 left-2 text-[9px] font-mono px-2 py-0.5 rounded bg-black/70 text-white/90">
-                              SURPRISE REVEALED
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+                            <div className="absolute bottom-4 left-4 right-4 text-left">
+                              <span
+                                className="text-[10px] font-mono uppercase tracking-wider block"
+                                style={{ color: tokens.primary }}
+                              >
+                                UNLOCKED SURPRISE
+                              </span>
+                              <h4
+                                className={`text-lg sm:text-xl font-bold ${headingFont}`}
+                                style={{ color: tokens.secondary }}
+                              >
+                                {surprisePhoto.caption}
+                              </h4>
                             </div>
                           </div>
-                          <div className="text-left space-y-1">
-                            <div className="text-[10px] font-mono text-[#78716c] uppercase tracking-wider">
-                              EXCLUSIVE MEMORY
+                          <div className="h-6 bg-[#0E0E0E] border-t border-[#222222] px-3 flex items-center justify-between overflow-hidden">
+                            <span className="text-[9px] font-mono text-neutral-500 uppercase">
+                              SECRET MASTER FRAME
+                            </span>
+                            <div className="flex items-center gap-3">
+                              {Array.from({ length: 14 }).map((_, i) => (
+                                <div key={`s-bot-${i}`} className="w-3 h-1.5 rounded-[1px] bg-[#1a1a1a] border border-[#333] shrink-0" />
+                              ))}
                             </div>
-                            <h4 
-                              className="text-lg sm:text-xl font-serif italic font-bold text-[#1c1917]"
-                              style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-                            >
-                              {surprisePhoto.caption}
-                            </h4>
                           </div>
                         </div>
-                      </div>
-                    ) : photoStyle === 'film-strip' ? (
-                      <div className="bg-[#090909] border border-[#282828] rounded-xl overflow-hidden shadow-2xl">
-                        <div className="h-6 bg-[#0E0E0E] border-b border-[#222222] px-3 flex items-center justify-between overflow-hidden">
-                          <div className="flex items-center gap-3">
-                            {Array.from({ length: 14 }).map((_, i) => (
-                              <div key={`s-top-${i}`} className="w-3 h-1.5 rounded-[1px] bg-[#1a1a1a] border border-[#333] shrink-0" />
-                            ))}
-                          </div>
-                          <span className="text-[9px] font-mono text-neutral-400 uppercase">
-                            70MM VAULT · SPECIAL REVEAL
-                          </span>
-                        </div>
-                        <div className="relative aspect-[16/9] w-full overflow-hidden bg-black">
+                      ) : (
+                        <div
+                          className="relative aspect-[16/9] w-full rounded-2xl overflow-hidden border shadow-2xl bg-black cursor-pointer"
+                          style={{ borderColor: tokens.primary }}
+                          data-cursor="expand"
+                          onClick={() => setFullscreenViewer({ photo: surprisePhoto, index: photos.length })}
+                          title="Click to view full screen"
+                        >
                           <AutoFitImage
                             src={surprisePhoto.previewUrl}
                             alt={surprisePhoto.caption}
                             focalPoint={heroFocus as any}
+                            enableBackdropGlow={true}
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
                           <div className="absolute bottom-4 left-4 right-4 text-left">
@@ -997,85 +1116,52 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
                             </h4>
                           </div>
                         </div>
-                        <div className="h-6 bg-[#0E0E0E] border-t border-[#222222] px-3 flex items-center justify-between overflow-hidden">
-                          <span className="text-[9px] font-mono text-neutral-500 uppercase">
-                            SECRET MASTER FRAME
-                          </span>
-                          <div className="flex items-center gap-3">
-                            {Array.from({ length: 14 }).map((_, i) => (
-                              <div key={`s-bot-${i}`} className="w-3 h-1.5 rounded-[1px] bg-[#1a1a1a] border border-[#333] shrink-0" />
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div
-                        className="relative aspect-[16/9] w-full rounded-2xl overflow-hidden border shadow-2xl bg-black"
-                        style={{ borderColor: tokens.primary }}
-                      >
-                        <AutoFitImage
-                          src={surprisePhoto.previewUrl}
-                          alt={surprisePhoto.caption}
-                          focalPoint={heroFocus as any}
-                          enableBackdropGlow={true}
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
-                        <div className="absolute bottom-4 left-4 right-4 text-left">
-                          <span
-                            className="text-[10px] font-mono uppercase tracking-wider block"
-                            style={{ color: tokens.primary }}
-                          >
-                            UNLOCKED SURPRISE
-                          </span>
-                          <h4
-                            className={`text-lg sm:text-xl font-bold ${headingFont}`}
-                            style={{ color: tokens.secondary }}
-                          >
-                            {surprisePhoto.caption}
-                          </h4>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
+        </ScrollReveal>
       )}
 
       {/* ======================================================== */}
       {/* CHAPTER 06 — FINALE                                     */}
       {/* ======================================================== */}
       {showChapters && (
-        <CinematicChapterCard
-          number="06 / 06"
-          act={surprisePhoto ? 'ACT VII' : 'ACT VI'}
-          title={chapters.chapter6 || 'FINALE'}
-          template={template}
-          tokens={tokens}
-          headingFont={headingFont}
-        />
+        <ScrollReveal variant="heading">
+          <CinematicChapterCard
+            number="06 / 06"
+            act={surprisePhoto ? 'ACT VII' : 'ACT VI'}
+            title={chapters.chapter6 || 'FINALE'}
+            template={template}
+            tokens={tokens}
+            headingFont={headingFont}
+          />
+        </ScrollReveal>
       )}
 
       {/* ======================================================== */}
       {/* 7. SECTION 7 — REFERENCE-INSPIRED FINAL CINEMATIC REVEAL */}
       {/* ======================================================== */}
-      <section id="sec-finale" className="relative w-full">
-        <FinalCinematicReveal
-          recipientName={recipientName}
-          surprisePhoto={surprisePhoto}
-          surpriseText={surpriseText}
-          finalMessage={finalMessage}
-          senderName={senderName}
-          template={template}
-          tokens={tokens}
-          headingFont={headingFont}
-          bodyFont={bodyFont}
-          heroFocus={heroFocus}
-          glowStyle={glowStyle}
-        />
-      </section>
+      <ScrollReveal variant="heading">
+        <section id="sec-finale" className="relative w-full">
+          <FinalCinematicReveal
+            recipientName={recipientName}
+            surprisePhoto={surprisePhoto}
+            surpriseText={surpriseText}
+            finalMessage={finalMessage}
+            senderName={senderName}
+            template={template}
+            tokens={tokens}
+            headingFont={headingFont}
+            bodyFont={bodyFont}
+            heroFocus={heroFocus}
+            glowStyle={glowStyle}
+          />
+        </section>
+      </ScrollReveal>
 
       {/* Hidden Message (Feature 2) */}
       {cinematicExtras?.hiddenMessageEnabled && cinematicExtras.hiddenMessageText && (
@@ -1108,6 +1194,15 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
         isOpen={easterEggOpen}
         onClose={() => setEasterEggOpen(false)}
         accentColor={tokens.primary}
+      />
+
+      {/* High-Resolution Fullscreen Image Viewer with Scroll State Preservation */}
+      <FullscreenImageViewer
+        isOpen={!!fullscreenViewer}
+        photo={fullscreenViewer?.photo || null}
+        currentIndex={fullscreenViewer?.index}
+        totalCount={photos.length}
+        onClose={() => setFullscreenViewer(null)}
       />
     </div>
   );

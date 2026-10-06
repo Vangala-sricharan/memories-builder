@@ -46,3 +46,19 @@ html {
   pointer-events: none;
 }
 
+/* Premium Desktop Cinematic Cursor Rules */
+@media (pointer: fine) and (hover: hover) {
+  body.has-cinematic-cursor,
+  body.has-cinematic-cursor button,
+  body.has-cinematic-cursor a,
+  body.has-cinematic-cursor [role="button"],
+  body.has-cinematic-cursor .cursor-pointer {
+    cursor: none !important;
+  }
+  body.has-cinematic-cursor input,
+  body.has-cinematic-cursor textarea,
+  body.has-cinematic-cursor [contenteditable="true"] {
+    cursor: text !important;
+  }
+}
+

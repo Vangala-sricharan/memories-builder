@@ -21,6 +21,7 @@ interface HeroPhotoFrameProps {
   heroFocus?: string;
   glowStyle?: string;
   borderStyle?: string;
+  onOpenFullscreen?: () => void;
 }
 
 export const HeroPhotoFrame: React.FC<HeroPhotoFrameProps> = ({
@@ -33,11 +34,17 @@ export const HeroPhotoFrame: React.FC<HeroPhotoFrameProps> = ({
   heroFocus = 'auto',
   glowStyle = 'cinematic',
   borderStyle = 'cinematic',
+  onOpenFullscreen,
 }) => {
   // 1. POLAROID HERO PRESENTATION
   if (photoStyle === 'polaroid') {
     return (
-      <div className="relative max-w-3xl mx-auto py-4 select-none">
+      <div 
+        className="relative max-w-3xl mx-auto py-4 select-none cursor-pointer"
+        data-cursor="expand"
+        onClick={onOpenFullscreen}
+        title="Click to view full screen"
+      >
         {/* Top vintage masking tape accent */}
         <div 
           className="absolute -top-2 left-1/2 -translate-x-1/2 w-28 h-7 bg-[#eae5d8]/80 backdrop-blur-sm border border-black/10 shadow-md z-20 rounded-[1px] pointer-events-none transform -rotate-1"
@@ -98,8 +105,11 @@ export const HeroPhotoFrame: React.FC<HeroPhotoFrameProps> = ({
   if (photoStyle === 'film-strip') {
     return (
       <div 
-        className="relative max-w-4xl mx-auto rounded-2xl overflow-hidden border shadow-2xl bg-black select-none"
+        className="relative max-w-4xl mx-auto rounded-2xl overflow-hidden border shadow-2xl bg-black select-none cursor-pointer"
         style={{ borderColor: tokens.border }}
+        data-cursor="expand"
+        onClick={onOpenFullscreen}
+        title="Click to view full screen"
       >
         {/* Top 35mm Sprocket Track */}
         <div className="h-7 bg-[#080808] border-b border-[#222222] px-4 flex items-center justify-between overflow-hidden">
@@ -195,8 +205,11 @@ export const HeroPhotoFrame: React.FC<HeroPhotoFrameProps> = ({
   if (photoStyle === 'fullscreen') {
     return (
       <div 
-        className="relative w-full rounded-3xl overflow-hidden shadow-2xl border bg-black select-none h-[65vh] sm:h-[75vh] max-h-[750px] flex flex-col justify-end"
+        className="relative w-full rounded-3xl overflow-hidden shadow-2xl border bg-black select-none h-[65vh] sm:h-[75vh] max-h-[750px] flex flex-col justify-end cursor-pointer"
         style={{ borderColor: tokens.border }}
+        data-cursor="expand"
+        onClick={onOpenFullscreen}
+        title="Click to view full screen"
       >
         <div className="absolute inset-0 z-0">
           <AutoFitImage
@@ -259,7 +272,7 @@ export const HeroPhotoFrame: React.FC<HeroPhotoFrameProps> = ({
   // 4. DEFAULT CINEMATIC / EDITORIAL HERO
   return (
     <div
-      className={`relative overflow-hidden border shadow-2xl group transition-all duration-300 ${
+      className={`relative overflow-hidden border shadow-2xl group transition-all duration-300 cursor-pointer ${
         template === 'memories'
           ? 'rounded-3xl p-3 sm:p-4'
           : template === 'elegance'
@@ -270,6 +283,9 @@ export const HeroPhotoFrame: React.FC<HeroPhotoFrameProps> = ({
         backgroundColor: tokens.surface,
         borderColor: borderStyle === 'none' ? 'transparent' : tokens.border,
       }}
+      data-cursor="expand"
+      onClick={onOpenFullscreen}
+      title="Click to view full screen"
     >
       <div
         className={`relative w-full overflow-hidden bg-black flex items-center justify-center aspect-[16/9] max-h-[580px] ${

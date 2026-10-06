@@ -429,6 +429,7 @@ export const ThreeDimensionalVault: React.FC<ThreeDimensionalVaultProps> = ({
               return (
                 <div
                   key={photo.id}
+                  data-cursor="expand"
                   onClick={() => navigateToCard(idx)}
                   className={`absolute inset-0 bg-[#FAF8F5] text-[#1c1917] p-2 pb-3.5 rounded-[4px] border border-[#e8e4dc] flex flex-col justify-between cursor-pointer transition-all duration-300 ${
                     isCardActive 
@@ -493,6 +494,7 @@ export const ThreeDimensionalVault: React.FC<ThreeDimensionalVaultProps> = ({
               return (
                 <div
                   key={photo.id}
+                  data-cursor="expand"
                   onClick={() => navigateToCard(idx)}
                   className={`absolute inset-0 bg-[#0B0B0B] border border-[#2d2d2d] p-1.5 pb-2 rounded-lg flex flex-col justify-between text-neutral-300 cursor-pointer transition-all duration-300 ${
                     isCardActive
@@ -568,6 +570,7 @@ export const ThreeDimensionalVault: React.FC<ThreeDimensionalVaultProps> = ({
             return (
               <div
                 key={photo.id}
+                data-cursor="expand"
                 onClick={() => navigateToCard(idx)}
                 className={`absolute inset-0 border shadow-2xl p-2 flex flex-col justify-between cursor-pointer transition-all duration-300 ${
                   isCardActive 

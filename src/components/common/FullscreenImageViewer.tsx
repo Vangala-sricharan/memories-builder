@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { UploadedPhoto } from '../../types';
 import { X, Calendar, MapPin, Maximize2, Sparkles } from 'lucide-react';
+import { setFullscreenActive } from '../../hooks/useScrollDirection';
 
 interface FullscreenImageViewerProps {
   photo: UploadedPhoto | null;
@@ -19,9 +20,11 @@ export const FullscreenImageViewer: React.FC<FullscreenImageViewerProps> = ({
 }) => {
   const previousScrollYRef = useRef<number>(0);
 
-  // Preserve scroll position & prevent body scrolling when open
+  // Preserve scroll position & prevent body scrolling when open, and pause scroll reveals
   useEffect(() => {
     if (!isOpen) return;
+
+    setFullscreenActive(true);
 
     if (typeof window !== 'undefined') {
       previousScrollYRef.current = window.scrollY;
@@ -45,6 +48,11 @@ export const FullscreenImageViewer: React.FC<FullscreenImageViewerProps> = ({
           top: previousScrollYRef.current,
           behavior: 'instant' as ScrollBehavior,
         });
+        setFullscreenActive(false);
+      };
+    } else {
+      return () => {
+        setFullscreenActive(false);
       };
     }
   }, [isOpen, onClose]);
