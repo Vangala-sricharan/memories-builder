@@ -25,7 +25,9 @@ interface StoryCurationStepProps {
   innerCirclePhotoIds: string[];
   onToggleInnerCirclePhoto: (id: string) => void;
   surprisePhoto?: UploadedPhoto | null;
-  onUpdateSurprisePhoto: (photo: UploadedPhoto | null) => void;
+  onUpdateSurprisePhoto?: (photo: UploadedPhoto | null) => void;
+  secretPhotos?: UploadedPhoto[];
+  onUpdateSecretPhotos?: (photos: UploadedPhoto[]) => void;
   onNext: () => void;
   onBack: () => void;
 }
@@ -41,6 +43,8 @@ export const StoryCurationStep: React.FC<StoryCurationStepProps> = ({
   onToggleInnerCirclePhoto,
   surprisePhoto,
   onUpdateSurprisePhoto,
+  secretPhotos = [],
+  onUpdateSecretPhotos,
   onNext,
   onBack,
 }) => {
@@ -49,11 +53,36 @@ export const StoryCurationStep: React.FC<StoryCurationStepProps> = ({
   const [editingPhoto, setEditingPhoto] = useState<UploadedPhoto | null>(null);
   const [isEditingSurprise, setIsEditingSurprise] = useState<boolean>(false);
 
+  // Canonical secret photos resolution
+  const activeSecrets: UploadedPhoto[] = React.useMemo(() => {
+    if (Array.isArray(secretPhotos) && secretPhotos.length > 0) {
+      return secretPhotos.slice(0, 5);
+    }
+    if (surprisePhoto) {
+      return [surprisePhoto];
+    }
+    return [];
+  }, [secretPhotos, surprisePhoto]);
+
+  const emitSecretsUpdate = (updated: UploadedPhoto[]) => {
+    const clamped = updated.slice(0, 5);
+    if (onUpdateSecretPhotos) {
+      onUpdateSecretPhotos(clamped);
+    } else if (onUpdateSurprisePhoto) {
+      onUpdateSurprisePhoto(clamped[0] || null);
+    }
+  };
+
   // Default hero to first photo if not set
   const activeHeroId = heroPhotoId || (photos.length > 0 ? photos[0].id : '');
 
   const handleSurpriseUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSurpriseError(null);
+    if (activeSecrets.length >= 5) {
+      setSurpriseError('Maximum 5 secret photos are allowed.');
+      e.target.value = '';
+      return;
+    }
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       if (!ALLOWED_TYPES.includes(file.type.toLowerCase())) {
@@ -65,22 +94,24 @@ export const StoryCurationStep: React.FC<StoryCurationStepProps> = ({
         return;
       }
       const previewUrl = URL.createObjectURL(file);
-      onUpdateSurprisePhoto({
-        id: `surprise-${Date.now()}`,
+      const newSecret: UploadedPhoto = {
+        id: `secret-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         file,
         previewUrl,
         originalFile: file,
         originalPreviewUrl: previewUrl,
-        caption: 'A Secret Preserved Just For You',
+        caption: activeSecrets.length === 0 ? 'A Secret Preserved Just For You' : `Secret Memory #${activeSecrets.length + 1}`,
         aspect: '16:9',
-      });
+      };
+      emitSecretsUpdate([...activeSecrets, newSecret]);
       e.target.value = '';
     }
   };
 
   const handleApplyEdit = (updatedPhoto: UploadedPhoto) => {
     if (isEditingSurprise) {
-      onUpdateSurprisePhoto(updatedPhoto);
+      const updated = activeSecrets.map((s) => (s.id === updatedPhoto.id ? updatedPhoto : s));
+      emitSecretsUpdate(updated);
     } else if (onUpdatePhoto) {
       onUpdatePhoto(updatedPhoto);
     }
@@ -89,13 +120,21 @@ export const StoryCurationStep: React.FC<StoryCurationStepProps> = ({
   };
 
   const handleResetEdit = (photoId: string) => {
-    if (isEditingSurprise && surprisePhoto) {
-      onUpdateSurprisePhoto({
-        ...surprisePhoto,
-        previewUrl: surprisePhoto.originalPreviewUrl || surprisePhoto.previewUrl,
-        file: surprisePhoto.originalFile || surprisePhoto.file,
-        editState: undefined,
-      });
+    if (isEditingSurprise) {
+      const target = activeSecrets.find((s) => s.id === photoId);
+      if (target) {
+        const updated = activeSecrets.map((s) =>
+          s.id === photoId
+            ? {
+                ...s,
+                previewUrl: s.originalPreviewUrl || s.previewUrl,
+                file: s.originalFile || s.file,
+                editState: undefined,
+              }
+            : s
+        );
+        emitSecretsUpdate(updated);
+      }
     } else if (onUpdatePhoto) {
       const ph = photos.find((p) => p.id === photoId);
       if (ph) {
@@ -107,6 +146,16 @@ export const StoryCurationStep: React.FC<StoryCurationStepProps> = ({
         });
       }
     }
+  };
+
+  const handleDeleteSecret = (secretId: string) => {
+    const updated = activeSecrets.filter((s) => s.id !== secretId);
+    emitSecretsUpdate(updated);
+  };
+
+  const handleUpdateSecretCaption = (secretId: string, caption: string) => {
+    const updated = activeSecrets.map((s) => (s.id === secretId ? { ...s, caption } : s));
+    emitSecretsUpdate(updated);
   };
 
   return (
@@ -253,20 +302,20 @@ export const StoryCurationStep: React.FC<StoryCurationStepProps> = ({
         </div>
       </div>
 
-      {/* Part 3: Optional Surprise Image */}
+      {/* Part 3: Optional Secret / Surprise Memories (0 to 5) */}
       <div className="bg-[#0F0F0F] border border-[#242424] rounded-2xl p-6 sm:p-8 space-y-5 shadow-xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-[#202020]">
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#FF4D4D]">
               <Sparkles className="w-4 h-4" />
-              <span>Section 6: Optional Surprise Moment</span>
+              <span>Section 6: Secret Memories ({activeSecrets.length} / 5)</span>
             </div>
             <p className="text-xs text-neutral-400 mt-0.5">
-              Add a separate confidential photo that is locked until the recipient unlocks it. If omitted, the section disappears completely.
+              Add confidential photos (0 to 5) sealed until the recipient unlocks them. If omitted, the section disappears completely.
             </p>
           </div>
           <span className="text-xs font-mono text-neutral-400">
-            Optional
+            {activeSecrets.length === 0 ? 'Optional (0/5)' : `${activeSecrets.length} / 5 configured`}
           </span>
         </div>
 
@@ -284,7 +333,7 @@ export const StoryCurationStep: React.FC<StoryCurationStepProps> = ({
           className="hidden"
         />
 
-        {!surprisePhoto ? (
+        {activeSecrets.length === 0 ? (
           <div
             onClick={() => surpriseInputRef.current?.click()}
             className="border-2 border-dashed border-[#2B2B2B] hover:border-[#E50914] rounded-xl p-8 text-center cursor-pointer transition-all bg-[#0A0A0A] hover:bg-[#121212] group"
@@ -296,60 +345,73 @@ export const StoryCurationStep: React.FC<StoryCurationStepProps> = ({
               Add Optional Surprise Photo
             </div>
             <div className="text-[11px] text-neutral-400">
-              Click to choose a secret photograph for the confidential Act VI reveal
+              Click to choose a secret photograph for the confidential Act VI reveal (0 to 5)
             </div>
           </div>
         ) : (
-          <div className="bg-[#140808] border border-[#3E1414] rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-20 h-14 rounded-lg overflow-hidden bg-black shrink-0 border border-white/10">
-                <AutoFitImage
-                  src={surprisePhoto.previewUrl}
-                  alt={surprisePhoto.caption}
-                />
-              </div>
-              <div>
-                <span className="text-[10px] font-mono uppercase text-[#E50914] block">
-                  SURPRISE ATTACHED
-                </span>
-                <input
-                  type="text"
-                  value={surprisePhoto.caption}
-                  onChange={(e) =>
-                    onUpdateSurprisePhoto({
-                      ...surprisePhoto,
-                      caption: e.target.value,
-                    })
-                  }
-                  className="bg-[#1C1212] border border-[#3A1E1E] focus:border-[#E50914] rounded px-2.5 py-1 text-xs text-white outline-none w-full sm:w-72 mt-1"
-                  placeholder="Caption for surprise reveal..."
-                />
-              </div>
-            </div>
+          <div className="space-y-3">
+            {activeSecrets.map((secret, sIdx) => (
+              <div
+                key={secret.id}
+                className="bg-[#140808] border border-[#3E1414] rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4"
+              >
+                <div className="flex items-center gap-4 w-full sm:w-auto">
+                  <div className="w-20 h-14 rounded-lg overflow-hidden bg-black shrink-0 border border-white/10">
+                    <AutoFitImage
+                      src={secret.previewUrl}
+                      alt={secret.caption}
+                    />
+                  </div>
+                  <div className="flex-1 sm:flex-none">
+                    <span className="text-[10px] font-mono uppercase text-[#E50914] block">
+                      SECRET #{sIdx + 1} ATTACHED
+                    </span>
+                    <input
+                      type="text"
+                      value={secret.caption}
+                      onChange={(e) => handleUpdateSecretCaption(secret.id, e.target.value)}
+                      className="bg-[#1C1212] border border-[#3A1E1E] focus:border-[#E50914] rounded px-2.5 py-1 text-xs text-white outline-none w-full sm:w-72 mt-1"
+                      placeholder="Caption for secret reveal..."
+                    />
+                  </div>
+                </div>
 
-            <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 self-end sm:self-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditingSurprise(true);
+                      setEditingPhoto(secret);
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-[#251010] hover:bg-[#E50914] text-neutral-300 hover:text-white text-xs font-mono flex items-center gap-1.5 transition-colors cursor-pointer"
+                    title="Crop or rotate secret photo"
+                  >
+                    <CropIcon className="w-3.5 h-3.5 text-[#E50914]" />
+                    <span>Crop / Rotate</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteSecret(secret.id)}
+                    className="p-2 rounded-lg bg-[#251010] hover:bg-red-950 text-neutral-400 hover:text-red-400 transition-colors cursor-pointer"
+                    title="Remove secret photo"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {activeSecrets.length < 5 && (
               <button
                 type="button"
-                onClick={() => {
-                  setIsEditingSurprise(true);
-                  setEditingPhoto(surprisePhoto);
-                }}
-                className="px-3 py-1.5 rounded-lg bg-[#251010] hover:bg-[#E50914] text-neutral-300 hover:text-white text-xs font-mono flex items-center gap-1.5 transition-colors cursor-pointer"
-                title="Crop or rotate surprise photo"
+                onClick={() => surpriseInputRef.current?.click()}
+                className="w-full py-3 border border-dashed border-[#333] hover:border-[#E50914] rounded-xl text-xs font-mono text-neutral-400 hover:text-white transition-all flex items-center justify-center gap-2 cursor-pointer bg-[#0A0A0A]/50 hover:bg-[#121212]"
               >
-                <CropIcon className="w-3.5 h-3.5 text-[#E50914]" />
-                <span>Crop / Rotate</span>
+                <UploadCloud className="w-4 h-4 text-[#E50914]" />
+                <span>+ Add Another Secret Photo ({activeSecrets.length} / 5)</span>
               </button>
-
-              <button
-                type="button"
-                onClick={() => onUpdateSurprisePhoto(null)}
-                className="p-2 rounded-lg bg-[#251010] hover:bg-red-950 text-neutral-400 hover:text-red-400 transition-colors cursor-pointer"
-                title="Remove surprise photo"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
+            )}
           </div>
         )}
       </div>

@@ -212,16 +212,26 @@ export const FinalReviewScreen: React.FC<FinalReviewScreenProps> = ({
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between">
-                <span className="font-semibold text-white">Secret Surprise (Act VI)</span>
+                <span className="font-semibold text-white">Secret Memories (Act VI)</span>
                 <span className="text-neutral-400 font-mono text-[11px]">
-                  {draft.surprisePhoto ? '✓ 1 Attached' : 'Skipped'}
+                  {(draft.secretPhotos && draft.secretPhotos.length > 0)
+                    ? `✓ ${draft.secretPhotos.length} Attached`
+                    : draft.surprisePhoto
+                    ? '✓ 1 Attached'
+                    : 'Skipped'}
                 </span>
               </div>
               <p className="text-neutral-400 truncate mt-0.5">
-                {draft.surprisePhoto ? draft.surprisePhoto.caption : 'No confidential photo (Optional)'}
+                {(draft.secretPhotos && draft.secretPhotos.length > 0)
+                  ? draft.secretPhotos[0].caption || `${draft.secretPhotos.length} confidential memory photo${draft.secretPhotos.length > 1 ? 's' : ''}`
+                  : draft.surprisePhoto
+                  ? draft.surprisePhoto.caption
+                  : 'No confidential photos (Optional)'}
               </p>
               <p className="text-[11px] text-neutral-500 font-mono mt-1">
-                {draft.surprisePhoto ? 'Locked until recipient unlocks' : 'Act VI smoothly bypassed'}
+                {(draft.secretPhotos && draft.secretPhotos.length > 0) || draft.surprisePhoto
+                  ? 'Locked until recipient unlocks'
+                  : 'Act VI smoothly bypassed'}
               </p>
             </div>
           </div>

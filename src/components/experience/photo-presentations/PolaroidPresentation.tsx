@@ -92,7 +92,6 @@ export const PolaroidPresentation: React.FC<PolaroidPresentationProps> = ({
 
               {/* Physical Polaroid Card */}
               <div
-                data-cursor="expand"
                 onClick={() => openLightbox(index)}
                 className="relative bg-[#FAF8F5] text-[#1c1917] p-3.5 sm:p-4 pb-7 sm:pb-8 rounded-[4px] cursor-pointer transition-all duration-300 ease-out transform group-hover:scale-[1.03] group-hover:-translate-y-2.5 group-hover:rotate-0 group-hover:z-30 shadow-[0_16px_36px_rgba(0,0,0,0.6),0_4px_12px_rgba(0,0,0,0.4)] group-hover:shadow-[0_28px_56px_rgba(0,0,0,0.85),0_10px_20px_rgba(0,0,0,0.5)] border border-[#e8e4dc]"
                 style={{

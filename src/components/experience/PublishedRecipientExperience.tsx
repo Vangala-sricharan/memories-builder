@@ -211,6 +211,7 @@ export const PublishedRecipientExperience: React.FC<PublishedRecipientExperience
           innerCirclePhotoIds={snapshot.innerCirclePhotoIds as any}
           innerCircleIntro={snapshot.innerCircleIntro}
           vaultIntro={snapshot.vaultIntro}
+          secretPhotos={snapshot.secretPhotos as any}
           surprisePhoto={snapshot.surprisePhoto}
           surpriseText={snapshot.surpriseText}
           finalMessage={snapshot.finalMessage}

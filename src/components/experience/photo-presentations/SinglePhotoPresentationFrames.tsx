@@ -41,7 +41,6 @@ export const HeroPhotoFrame: React.FC<HeroPhotoFrameProps> = ({
     return (
       <div 
         className="relative max-w-3xl mx-auto py-4 select-none cursor-pointer"
-        data-cursor="expand"
         onClick={onOpenFullscreen}
         title="Click to view full screen"
       >
@@ -107,7 +106,6 @@ export const HeroPhotoFrame: React.FC<HeroPhotoFrameProps> = ({
       <div 
         className="relative max-w-4xl mx-auto rounded-2xl overflow-hidden border shadow-2xl bg-black select-none cursor-pointer"
         style={{ borderColor: tokens.border }}
-        data-cursor="expand"
         onClick={onOpenFullscreen}
         title="Click to view full screen"
       >
@@ -207,7 +205,6 @@ export const HeroPhotoFrame: React.FC<HeroPhotoFrameProps> = ({
       <div 
         className="relative w-full rounded-3xl overflow-hidden shadow-2xl border bg-black select-none h-[65vh] sm:h-[75vh] max-h-[750px] flex flex-col justify-end cursor-pointer"
         style={{ borderColor: tokens.border }}
-        data-cursor="expand"
         onClick={onOpenFullscreen}
         title="Click to view full screen"
       >
@@ -283,7 +280,6 @@ export const HeroPhotoFrame: React.FC<HeroPhotoFrameProps> = ({
         backgroundColor: tokens.surface,
         borderColor: borderStyle === 'none' ? 'transparent' : tokens.border,
       }}
-      data-cursor="expand"
       onClick={onOpenFullscreen}
       title="Click to view full screen"
     >

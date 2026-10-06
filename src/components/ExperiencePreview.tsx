@@ -88,7 +88,6 @@ export const ExperiencePreview: React.FC<ExperiencePreviewProps> = ({ onOpenExpe
                   <button
                     key={photo.id}
                     type="button"
-                    data-cursor="photo"
                     onClick={() => setActivePhotoIndex(idx)}
                     className={`aspect-video rounded-lg border p-2 text-left transition-all cursor-pointer relative overflow-hidden flex flex-col justify-between ${
                       activePhotoIndex === idx

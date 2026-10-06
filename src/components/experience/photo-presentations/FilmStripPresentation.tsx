@@ -263,7 +263,6 @@ export const FilmStripPresentation: React.FC<FilmStripPresentationProps> = ({
               return (
                 <div
                   key={photo.id || index}
-                  data-cursor="photo"
                   onClick={() => handleSelectFrame(index)}
                   className={`shrink-0 w-44 sm:w-56 cursor-pointer snap-center group transition-all duration-300 relative border ${
                     isSelected

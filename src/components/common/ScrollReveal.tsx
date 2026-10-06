@@ -10,7 +10,6 @@ export interface ScrollRevealProps {
   replay?: boolean; // Whether animation may replay when scrolling back into view (default: true)
   once?: boolean; // Shortcut to never replay (e.g. for secret memory reveals)
   threshold?: number; // IntersectionObserver threshold (default: 0.12)
-  cursorHint?: 'photo' | 'expand' | 'secret' | 'button';
   style?: React.CSSProperties;
 }
 
@@ -23,7 +22,6 @@ export const ScrollReveal: React.FC<ScrollRevealProps> = ({
   replay = true,
   once = false,
   threshold = 0.12,
-  cursorHint,
   style = {},
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -179,7 +177,6 @@ export const ScrollReveal: React.FC<ScrollRevealProps> = ({
     <div
       ref={containerRef}
       className={`scroll-reveal-container ${className}`}
-      data-cursor={cursorHint}
       data-reveal-direction={revealDirection}
       data-is-revealed={isRevealed ? 'true' : 'false'}
       style={getDynamicStyles()}
@@ -190,14 +187,13 @@ export const ScrollReveal: React.FC<ScrollRevealProps> = ({
 };
 
 /**
- * Dedicated reveal wrapper for photos with cinematic cursor expansion hook
+ * Dedicated reveal wrapper for photos
  */
 export const ScrollRevealPhoto: React.FC<Omit<ScrollRevealProps, 'variant'>> = (props) => {
   return (
     <ScrollReveal
       {...props}
       variant="photo"
-      cursorHint={props.cursorHint || 'photo'}
     />
   );
 };

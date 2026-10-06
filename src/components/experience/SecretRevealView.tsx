@@ -20,6 +20,7 @@ interface SecretRevealViewProps {
   bodyFont: string;
   heroFocus?: string;
   glowStyle?: string;
+  isInitiallyRevealed?: boolean;
   onRevealed?: () => void;
 }
 
@@ -32,9 +33,16 @@ export const SecretRevealView: React.FC<SecretRevealViewProps> = ({
   bodyFont,
   heroFocus = 'auto',
   glowStyle = 'cinematic',
+  isInitiallyRevealed = false,
   onRevealed,
 }) => {
-  const [isRevealed, setIsRevealed] = useState(false);
+  const [isRevealed, setIsRevealed] = useState(isInitiallyRevealed);
+
+  React.useEffect(() => {
+    if (isInitiallyRevealed) {
+      setIsRevealed(true);
+    }
+  }, [isInitiallyRevealed]);
 
   const handleReveal = () => {
     setIsRevealed(true);

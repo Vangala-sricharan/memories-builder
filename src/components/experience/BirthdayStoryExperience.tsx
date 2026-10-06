@@ -41,8 +41,10 @@ import {
   Zap,
   Crown
 } from 'lucide-react';
+import { getPlayedSecretIds, markSecretPlayed } from '../../utils/secretPlaybackState';
 
 interface BirthdayStoryExperienceProps {
+  experienceId?: string;
   template?: ExperienceTemplate;
   theme?: ExperienceTheme;
   customization?: Partial<ExperienceCustomization>;
@@ -58,6 +60,7 @@ interface BirthdayStoryExperienceProps {
   innerCircleIntro?: string;
   vaultIntro?: string;
   surprisePhoto?: UploadedPhoto | null;
+  secretPhotos?: UploadedPhoto[];
   surpriseText?: string;
   finalMessage?: string;
   senderName?: string;
@@ -81,11 +84,13 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
   innerCircleIntro,
   vaultIntro,
   surprisePhoto,
+  secretPhotos = [],
   surpriseText,
   finalMessage = 'May the year ahead bring the same unyielding joy and wonder that you bring into the lives of everyone lucky enough to know you.',
   senderName,
   music,
   isStandalone = false,
+  experienceId,
 }) => {
   // Determine Hero Photo: selected photo or first uploaded photo
   const heroPhoto = photos.find((p) => p.id === heroPhotoId) || photos[0];
@@ -94,9 +99,6 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
   const innerCirclePhotos = innerCirclePhotoIds.length > 0
     ? photos.filter((p) => innerCirclePhotoIds.includes(p.id))
     : photos.slice(0, Math.min(4, photos.length));
-
-  // Surprise Image reveal state
-  const [surpriseRevealed, setSurpriseRevealed] = useState(false);
 
   // Selected photo viewer index in Memory Sequence
   const [activeMemoryIndex, setActiveMemoryIndex] = useState(0);
@@ -143,7 +145,6 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
   const innerCircleSplit = splitWords(innerCircleTitle);
   const memoriesSplit = splitWords(memoriesTitle);
   const vaultSplit = splitWords(vaultTitle);
-  const surpriseSplit = splitWords(surpriseTitle);
 
   // Check prefers-reduced-motion
   const prefersReducedMotion = typeof window !== 'undefined'
@@ -182,18 +183,56 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
   };
   const showChapters = cinematicExtras?.chapterTitlesEnabled !== false;
 
-  // Spotlight photo (Feature 4)
+  // Spotlight photo (Feature 4 - strictly from normal memories collection)
   const spotlightPhoto = cinematicExtras?.memorySpotlightEnabled
-    ? photos.find((p) => cinematicExtras.spotlightPhotoIds?.includes(p.id)) || photos[Math.min(1, photos.length - 1)]
+    ? photos.find((p) => cinematicExtras.spotlightPhotoIds?.includes(p.id)) || (photos.length > 1 ? photos[1] : photos[0] || null)
     : null;
 
-  // Secret photo (Feature 1)
-  const secretPhoto = cinematicExtras?.secretRevealEnabled
-    ? photos.find((p) => p.id === cinematicExtras.secretPhotoId) || photos[Math.max(0, photos.length - 1)]
-    : null;
+  // Canonical Secret Memories Resolution (0 to 5)
+  // STRICT RULE: Normal photos are NEVER automatically copied into secrets!
+  // If no secretPhotos exist, there is NO secret experience.
+  const canonicalSecretPhotos: UploadedPhoto[] = React.useMemo(() => {
+    let raw = secretPhotos;
+    if ((!raw || raw.length === 0) && surprisePhoto) {
+      raw = [surprisePhoto];
+    }
+    if (!Array.isArray(raw)) return [];
 
-  // Surprise Lock state (Feature 5)
-  const showSurpriseLock = cinematicExtras?.surpriseLockEnabled !== false && !!surprisePhoto;
+    const valid = raw.filter((p): p is UploadedPhoto => {
+      if (!p || typeof p !== 'object') return false;
+      if (!p.id || typeof p.id !== 'string') {
+        console.warn('[DataModel] Invalid secret photo without stable ID; safely skipping.');
+        return false;
+      }
+      return true;
+    });
+
+    if (valid.length > 5) {
+      console.warn(`[DataModel] Experience contained ${valid.length} secrets; clamped to maximum 5.`);
+      return valid.slice(0, 5);
+    }
+    return valid;
+  }, [secretPhotos, surprisePhoto]);
+
+  const hasSecrets = canonicalSecretPhotos.length > 0;
+
+  // Session-scoped one-time secret playback state
+  const sessionExpId = experienceId || 'preview-experience';
+  const [playedSecretIds, setPlayedSecretIds] = useState<Set<string>>(() => {
+    return getPlayedSecretIds(sessionExpId);
+  });
+
+  const handleSecretRevealed = React.useCallback((secretId: string) => {
+    markSecretPlayed(sessionExpId, secretId);
+    setPlayedSecretIds((prev) => {
+      const next = new Set(prev);
+      next.add(secretId);
+      return next;
+    });
+  }, [sessionExpId]);
+
+  // Surprise Lock state: only rendered if secrets exist
+  const showSurpriseLock = cinematicExtras?.surpriseLockEnabled !== false && hasSecrets;
 
   // Easter Egg state (Feature 10)
   const [easterEggOpen, setEasterEggOpen] = useState(false);
@@ -217,7 +256,6 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-    setSurpriseRevealed(false);
     setActiveMemoryIndex(0);
   };
 
@@ -228,8 +266,7 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
     { id: 'sec-memories', name: 'MEMORIES', act: 'ACT III' },
     ...(innerCirclePhotos.length > 0 ? [{ id: 'sec-circle', name: 'PEOPLE', act: 'ACT IV' }] : []),
     { id: 'sec-vault', name: '3D VAULT', act: 'ACT V' },
-    ...(secretPhoto ? [{ id: 'sec-secret', name: 'SECRET', act: 'ACT VI' }] : []),
-    ...(surprisePhoto ? [{ id: 'sec-surprise', name: 'SURPRISE', act: 'ACT VII' }] : []),
+    ...(hasSecrets ? [{ id: 'sec-secret', name: 'SECRET', act: 'ACT VI' }] : []),
     { id: 'sec-finale', name: 'FINALE', act: 'EPILOGUE' },
   ];
 
@@ -493,7 +530,7 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
               </div>
             </ScrollReveal>
 
-            <ScrollRevealPhoto cursorHint="expand">
+            <ScrollRevealPhoto>
               <HeroPhotoFrame
                 photo={heroPhoto}
                 photoStyle={photoStyle}
@@ -660,7 +697,6 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
                     <ScrollRevealPhoto
                       key={photo.id}
                       staggerIndex={idx}
-                      cursorHint="expand"
                       className="cursor-pointer"
                     >
                       <div
@@ -714,7 +750,6 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
                     <ScrollRevealPhoto
                       key={photo.id}
                       staggerIndex={idx}
-                      cursorHint="expand"
                       className="cursor-pointer"
                     >
                       <div
@@ -755,7 +790,6 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
                   <ScrollRevealPhoto
                     key={photo.id}
                     staggerIndex={idx}
-                    cursorHint="expand"
                     className="cursor-pointer"
                   >
                     <div
@@ -888,22 +922,40 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
         </div>
       </section>
 
-      {/* Secret Reveal (Feature 1) */}
-      {secretPhoto && (
-        <ScrollReveal once={true} cursorHint="secret">
-          <div id="sec-secret">
-            <SecretRevealView
-              photo={secretPhoto}
-              template={template}
-              photoStyle={photoStyle}
-              tokens={tokens}
-              headingFont={headingFont}
-              bodyFont={bodyFont}
-              heroFocus={heroFocus}
-              glowStyle={glowStyle}
-            />
-          </div>
+      {/* Chapter 05 — THE SECRET ARCHIVE */}
+      {showChapters && hasSecrets && (
+        <ScrollReveal variant="heading">
+          <CinematicChapterCard
+            number="05 / 06"
+            act="ACT VI"
+            title={chapters.chapter5 || 'THE SECRET ARCHIVE'}
+            template={template}
+            tokens={tokens}
+            headingFont={headingFont}
+          />
         </ScrollReveal>
+      )}
+
+      {/* Canonical Secret Memories (0 to 5) - Strictly owns secret reveal */}
+      {hasSecrets && (
+        <div id="sec-secret" className="space-y-8">
+          {canonicalSecretPhotos.map((secret) => (
+            <ScrollReveal key={secret.id} once={true}>
+              <SecretRevealView
+                photo={secret}
+                template={template}
+                photoStyle={photoStyle}
+                tokens={tokens}
+                headingFont={headingFont}
+                bodyFont={bodyFont}
+                heroFocus={heroFocus}
+                glowStyle={glowStyle}
+                isInitiallyRevealed={playedSecretIds.has(secret.id)}
+                onRevealed={() => handleSecretRevealed(secret.id)}
+              />
+            </ScrollReveal>
+          ))}
+        </div>
       )}
 
       {/* Surprise Lock (Feature 5) */}
@@ -918,214 +970,6 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
         </ScrollReveal>
       )}
 
-      {/* Chapter 05 — THE SURPRISE */}
-      {showChapters && surprisePhoto && (
-        <ScrollReveal variant="heading">
-          <CinematicChapterCard
-            number="05 / 06"
-            act="ACT V"
-            title={chapters.chapter5 || 'THE SURPRISE'}
-            template={template}
-            tokens={tokens}
-            headingFont={headingFont}
-          />
-        </ScrollReveal>
-      )}
-
-      {/* ======================================================== */}
-      {/* 6. SECTION 6 — OPTIONAL SURPRISE IMAGE                  */}
-      {/* ======================================================== */}
-      {surprisePhoto && (
-        <ScrollReveal once={true}>
-          <section id="sec-surprise" className="relative px-4">
-            <div className="max-w-4xl mx-auto">
-              <div
-                className={`border p-8 sm:p-14 text-center relative overflow-hidden shadow-2xl ${
-                  template === 'memories' ? 'rounded-3xl' : template === 'elegance' ? 'rounded-none border-white/20' : 'rounded-3xl'
-                }`}
-                style={{
-                  backgroundColor: tokens.surface,
-                  borderColor: borderStyle === 'none' ? 'transparent' : tokens.borderHighlight,
-                }}
-              >
-                {glowStyle !== 'none' && (
-                  <div
-                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full blur-[100px] pointer-events-none"
-                    style={{ backgroundColor: tokens.glowStrong }}
-                  />
-                )}
-
-                <div className="relative z-10 space-y-5">
-                  <div
-                    className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs font-mono uppercase tracking-widest"
-                    style={{
-                      backgroundColor: tokens.surfaceHighlight,
-                      borderColor: tokens.borderHighlight,
-                      color: tokens.primary,
-                    }}
-                  >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>ACT VI · CONFIDENTIAL REVEAL</span>
-                  </div>
-
-                  <SplitHeading
-                    primaryPart={surpriseSplit.primary}
-                    secondaryPart={surpriseSplit.secondary}
-                    as="h2"
-                    className={`text-3xl sm:text-5xl font-black ${headingFont}`}
-                  />
-
-                  <p
-                    className={`text-xs sm:text-sm max-w-md mx-auto leading-relaxed ${bodyFont}`}
-                    style={{ color: tokens.body }}
-                  >
-                    {surpriseText || 'A secluded memory kept hidden until this very moment.'}
-                  </p>
-
-                  {!surpriseRevealed ? (
-                    <div className="py-6">
-                      <button
-                        type="button"
-                        onClick={() => setSurpriseRevealed(true)}
-                        className="px-8 py-4 rounded-xl text-xs sm:text-sm font-bold tracking-[0.2em] uppercase transition-all shadow-xl hover:scale-105 cursor-pointer inline-flex items-center gap-2"
-                        style={{
-                          backgroundColor: tokens.primary,
-                          color: '#FFFFFF',
-                          boxShadow: glowStyle !== 'none' ? `0 12px 28px ${tokens.glowStrong}` : undefined,
-                        }}
-                      >
-                        <Unlock className="w-4 h-4" />
-                        <span>UNLOCK SURPRISE MEMORY</span>
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="animate-fade-in pt-4 max-w-2xl mx-auto space-y-4">
-                      {photoStyle === 'polaroid' ? (
-                        <div 
-                          className="relative max-w-md mx-auto py-2 cursor-pointer"
-                          data-cursor="expand"
-                          onClick={() => setFullscreenViewer({ photo: surprisePhoto, index: photos.length })}
-                          title="Click to view full screen"
-                        >
-                          {/* Tape accent */}
-                          <div 
-                            className="absolute -top-2 left-1/2 -translate-x-1/2 w-20 h-5 bg-[#eae5d8]/80 border border-black/10 shadow-xs z-10 rounded-[1px] pointer-events-none transform -rotate-1"
-                            style={{ clipPath: 'polygon(0 0, 100% 4%, 96% 100%, 4% 96%)' }}
-                          />
-                          <div className="bg-[#FAF8F5] text-[#1c1917] p-4 pb-8 rounded-[3px] shadow-[0_20px_40px_rgba(0,0,0,0.85)] border border-[#e8e4dc]">
-                            <div className="aspect-[4/3] overflow-hidden bg-black mb-3 relative rounded-[2px] shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)] border border-black/20">
-                              <AutoFitImage
-                                src={surprisePhoto.previewUrl}
-                                alt={surprisePhoto.caption}
-                                focalPoint={heroFocus as any}
-                              />
-                              <div className="absolute top-2 left-2 text-[9px] font-mono px-2 py-0.5 rounded bg-black/70 text-white/90">
-                                SURPRISE REVEALED
-                              </div>
-                            </div>
-                            <div className="text-left space-y-1">
-                              <div className="text-[10px] font-mono text-[#78716c] uppercase tracking-wider">
-                                EXCLUSIVE MEMORY
-                              </div>
-                              <h4 
-                                className="text-lg sm:text-xl font-serif italic font-bold text-[#1c1917]"
-                                style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-                              >
-                                {surprisePhoto.caption}
-                              </h4>
-                            </div>
-                          </div>
-                        </div>
-                      ) : photoStyle === 'film-strip' ? (
-                        <div 
-                          className="bg-[#090909] border border-[#282828] rounded-xl overflow-hidden shadow-2xl cursor-pointer"
-                          data-cursor="expand"
-                          onClick={() => setFullscreenViewer({ photo: surprisePhoto, index: photos.length })}
-                          title="Click to view full screen"
-                        >
-                          <div className="h-6 bg-[#0E0E0E] border-b border-[#222222] px-3 flex items-center justify-between overflow-hidden">
-                            <div className="flex items-center gap-3">
-                              {Array.from({ length: 14 }).map((_, i) => (
-                                <div key={`s-top-${i}`} className="w-3 h-1.5 rounded-[1px] bg-[#1a1a1a] border border-[#333] shrink-0" />
-                              ))}
-                            </div>
-                            <span className="text-[9px] font-mono text-neutral-400 uppercase">
-                              70MM VAULT · SPECIAL REVEAL
-                            </span>
-                          </div>
-                          <div className="relative aspect-[16/9] w-full overflow-hidden bg-black">
-                            <AutoFitImage
-                              src={surprisePhoto.previewUrl}
-                              alt={surprisePhoto.caption}
-                              focalPoint={heroFocus as any}
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
-                            <div className="absolute bottom-4 left-4 right-4 text-left">
-                              <span
-                                className="text-[10px] font-mono uppercase tracking-wider block"
-                                style={{ color: tokens.primary }}
-                              >
-                                UNLOCKED SURPRISE
-                              </span>
-                              <h4
-                                className={`text-lg sm:text-xl font-bold ${headingFont}`}
-                                style={{ color: tokens.secondary }}
-                              >
-                                {surprisePhoto.caption}
-                              </h4>
-                            </div>
-                          </div>
-                          <div className="h-6 bg-[#0E0E0E] border-t border-[#222222] px-3 flex items-center justify-between overflow-hidden">
-                            <span className="text-[9px] font-mono text-neutral-500 uppercase">
-                              SECRET MASTER FRAME
-                            </span>
-                            <div className="flex items-center gap-3">
-                              {Array.from({ length: 14 }).map((_, i) => (
-                                <div key={`s-bot-${i}`} className="w-3 h-1.5 rounded-[1px] bg-[#1a1a1a] border border-[#333] shrink-0" />
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div
-                          className="relative aspect-[16/9] w-full rounded-2xl overflow-hidden border shadow-2xl bg-black cursor-pointer"
-                          style={{ borderColor: tokens.primary }}
-                          data-cursor="expand"
-                          onClick={() => setFullscreenViewer({ photo: surprisePhoto, index: photos.length })}
-                          title="Click to view full screen"
-                        >
-                          <AutoFitImage
-                            src={surprisePhoto.previewUrl}
-                            alt={surprisePhoto.caption}
-                            focalPoint={heroFocus as any}
-                            enableBackdropGlow={true}
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
-                          <div className="absolute bottom-4 left-4 right-4 text-left">
-                            <span
-                              className="text-[10px] font-mono uppercase tracking-wider block"
-                              style={{ color: tokens.primary }}
-                            >
-                              UNLOCKED SURPRISE
-                            </span>
-                            <h4
-                              className={`text-lg sm:text-xl font-bold ${headingFont}`}
-                              style={{ color: tokens.secondary }}
-                            >
-                              {surprisePhoto.caption}
-                            </h4>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </section>
-        </ScrollReveal>
-      )}
-
       {/* ======================================================== */}
       {/* CHAPTER 06 — FINALE                                     */}
       {/* ======================================================== */}
@@ -1133,7 +977,7 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
         <ScrollReveal variant="heading">
           <CinematicChapterCard
             number="06 / 06"
-            act={surprisePhoto ? 'ACT VII' : 'ACT VI'}
+            act={hasSecrets ? 'ACT VII' : 'ACT VI'}
             title={chapters.chapter6 || 'FINALE'}
             template={template}
             tokens={tokens}
@@ -1149,8 +993,6 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
         <section id="sec-finale" className="relative w-full">
           <FinalCinematicReveal
             recipientName={recipientName}
-            surprisePhoto={surprisePhoto}
-            surpriseText={surpriseText}
             finalMessage={finalMessage}
             senderName={senderName}
             template={template}

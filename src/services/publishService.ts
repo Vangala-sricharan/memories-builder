@@ -1,4 +1,5 @@
 import { BirthdayExperienceDraft, PublishedExperienceSnapshot, PublishStatus, UploadedPhoto, UploadedMusic } from '../types';
+import { normalizeDraftData, normalizePublishedSnapshot } from '../utils/normalizeExperienceData';
 
 // In-memory cache with sessionStorage backup for immediate rendering during page transitions
 const memoryCache = new Map<string, PublishedExperienceSnapshot>();
@@ -93,8 +94,9 @@ export function getPublishedExperience(experienceId: string): PublishedExperienc
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed) {
-          memoryCache.set(experienceId, parsed);
-          return parsed;
+          const normalized = Object.freeze(normalizePublishedSnapshot(parsed));
+          memoryCache.set(experienceId, normalized);
+          return normalized;
         }
       }
     } catch (e) {
@@ -146,7 +148,7 @@ export async function fetchPublishedExperience(experienceId: string): Promise<Pu
     }
 
     if (data.status === 'PUBLISHED') {
-      const snapshot: PublishedExperienceSnapshot = Object.freeze({
+      const rawSnapshot: PublishedExperienceSnapshot = {
         experienceId,
         recipientName: data.recipientName,
         relationship: data.relationship,
@@ -155,10 +157,11 @@ export async function fetchPublishedExperience(experienceId: string): Promise<Pu
         milestoneAge: data.milestoneAge,
         senderName: data.senderName,
         birthdayMessage: data.birthdayMessage,
-        photos: Object.freeze(data.photos || []),
+        photos: data.photos || [],
         heroPhotoId: data.heroPhotoId,
-        innerCirclePhotoIds: Object.freeze(data.innerCirclePhotoIds || []),
+        innerCirclePhotoIds: data.innerCirclePhotoIds || [],
         surprisePhoto: data.surprisePhoto || null,
+        secretPhotos: data.secretPhotos,
         finalMessage: data.finalMessage,
         music: data.music || null,
         tagline: data.tagline,
@@ -172,7 +175,9 @@ export async function fetchPublishedExperience(experienceId: string): Promise<Pu
         publishedAt: data.publishedAt,
         expiresAt: data.expiresAt,
         status: 'PUBLISHED',
-      });
+      };
+
+      const snapshot = Object.freeze(normalizePublishedSnapshot(rawSnapshot));
 
       memoryCache.set(experienceId, snapshot);
       if (typeof window !== 'undefined') {
@@ -213,23 +218,29 @@ export function assertNotPublished(status: PublishStatus): void {
 export async function publishExperience(
   draft: BirthdayExperienceDraft
 ): Promise<PublishedExperienceSnapshot> {
+  // Normalize draft before publish validation
+  const canonicalDraft = normalizeDraftData(draft);
+
   // Validate minimum requirements
-  if (!draft.recipientName || !draft.recipientName.trim()) {
+  if (!canonicalDraft.recipientName || !canonicalDraft.recipientName.trim()) {
     throw new Error('A recipient name is required before publishing.');
   }
-  if (!draft.photos || draft.photos.length < 6) {
+  if (!canonicalDraft.photos || canonicalDraft.photos.length < 6) {
     throw new Error('At least 6 photos are required to publish a complete birthday experience.');
   }
-  if (draft.photos.length > 25) {
+  if (canonicalDraft.photos.length > 25) {
     throw new Error('A maximum of 25 photos is allowed for the memory collection.');
+  }
+  if (canonicalDraft.secretPhotos && canonicalDraft.secretPhotos.length > 5) {
+    throw new Error('A maximum of 5 secret photos is allowed.');
   }
 
   const experienceId = createExperienceId();
 
   // 1. Upload all optimized photos to private Supabase Storage
   const uploadedPhotos: UploadedPhoto[] = [];
-  for (let i = 0; i < draft.photos.length; i++) {
-    const photo = draft.photos[i];
+  for (let i = 0; i < canonicalDraft.photos.length; i++) {
+    const photo = canonicalDraft.photos[i];
     try {
       const { dataBase64, mimeType } = await fileOrUrlToBase64(photo.file, photo.previewUrl);
       const res = await fetch('/api/upload-media', {
@@ -259,47 +270,11 @@ export async function publishExperience(
     }
   }
 
-  // 2. Upload optional surprise photo to private Supabase Storage
-  let uploadedSurprise: UploadedPhoto | null = null;
-  if (draft.surprisePhoto) {
-    try {
-      const { dataBase64, mimeType } = await fileOrUrlToBase64(
-        draft.surprisePhoto.file,
-        draft.surprisePhoto.previewUrl
-      );
-      const res = await fetch('/api/upload-media', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          experienceId,
-          type: 'image',
-          dataBase64,
-          mimeType,
-          fileName: draft.surprisePhoto.file?.name || 'surprise.webp',
-        }),
-      });
-
-      if (!res.ok) {
-        throw new Error(`Surprise photo upload rejected (status ${res.status})`);
-      }
-
-      const uploadData = await res.json();
-      uploadedSurprise = {
-        ...draft.surprisePhoto,
-        previewUrl: uploadData.url || draft.surprisePhoto.previewUrl,
-      };
-    } catch (e: any) {
-      console.error('Failed uploading surprise photo:', e?.message);
-      throw new Error(`Failed to upload surprise photo to storage: ${e?.message || 'Upload failed'}`);
-    }
-  }
-
-  // 2b. Upload optional secret photos to private Supabase Storage
-  let uploadedSecretPhotos: UploadedPhoto[] | undefined = undefined;
-  if (draft.secretPhotos && draft.secretPhotos.length > 0) {
-    uploadedSecretPhotos = [];
-    for (let sIdx = 0; sIdx < draft.secretPhotos.length; sIdx++) {
-      const secPhoto = draft.secretPhotos[sIdx];
+  // 2. Upload optional secret photos to private Supabase Storage (canonical 0 to 5)
+  let uploadedSecretPhotos: UploadedPhoto[] = [];
+  if (canonicalDraft.secretPhotos && canonicalDraft.secretPhotos.length > 0) {
+    for (let sIdx = 0; sIdx < canonicalDraft.secretPhotos.length; sIdx++) {
+      const secPhoto = canonicalDraft.secretPhotos[sIdx];
       try {
         const { dataBase64, mimeType } = await fileOrUrlToBase64(secPhoto.file, secPhoto.previewUrl);
         const res = await fetch('/api/upload-media', {
@@ -332,11 +307,11 @@ export async function publishExperience(
 
   // 3. Upload optional MP3 directly to private Supabase Storage via signed upload URL
   let uploadedMusic: UploadedMusic | null = null;
-  if (draft.music) {
+  if (canonicalDraft.music) {
     try {
-      let fileBlob: Blob | File | null = draft.music.file || null;
-      if (!fileBlob && draft.music.url && draft.music.url.startsWith('blob:')) {
-        const blobRes = await fetch(draft.music.url);
+      let fileBlob: Blob | File | null = canonicalDraft.music.file || null;
+      if (!fileBlob && canonicalDraft.music.url && canonicalDraft.music.url.startsWith('blob:')) {
+        const blobRes = await fetch(canonicalDraft.music.url);
         fileBlob = await blobRes.blob();
       }
 
@@ -350,7 +325,7 @@ export async function publishExperience(
             experienceId,
             type: 'music',
             mimeType: 'audio/mpeg',
-            fileName: draft.music.fileName || 'soundtrack.mp3',
+            fileName: canonicalDraft.music.fileName || 'soundtrack.mp3',
           }),
         });
 
@@ -378,7 +353,7 @@ export async function publishExperience(
         }
 
         uploadedMusic = {
-          ...draft.music,
+          ...canonicalDraft.music,
           url: signData.mediaUrl,
         };
       }
@@ -390,10 +365,10 @@ export async function publishExperience(
 
   // 4. Prepare draft payload with Supabase Storage media references
   const preparedDraft: BirthdayExperienceDraft = {
-    ...draft,
+    ...canonicalDraft,
     photos: uploadedPhotos,
-    surprisePhoto: uploadedSurprise,
     secretPhotos: uploadedSecretPhotos,
+    surprisePhoto: uploadedSecretPhotos[0] || null,
     music: uploadedMusic,
   };
 
@@ -413,7 +388,9 @@ export async function publishExperience(
   }
 
   const publishData = await publishRes.json();
-  const snapshot: PublishedExperienceSnapshot = Object.freeze(publishData.snapshot);
+  const snapshot: PublishedExperienceSnapshot = Object.freeze(
+    normalizePublishedSnapshot(publishData.snapshot)
+  );
 
   // Store in cache
   memoryCache.set(experienceId, snapshot);

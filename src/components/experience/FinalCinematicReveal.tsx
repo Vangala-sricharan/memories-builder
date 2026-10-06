@@ -80,18 +80,18 @@ export const FinalCinematicReveal: React.FC<FinalCinematicRevealProps> = ({
     const t2 = setTimeout(() => setRevealStep(2), 1700);  // STEP 2: "HAPPY"
     const t3 = setTimeout(() => setRevealStep(3), 2900);  // STEP 3: "BIRTHDAY"
     const t4 = setTimeout(() => setRevealStep(4), 4100);  // STEP 4: RECIPIENT NAME
-    const t5 = setTimeout(() => setRevealStep(5), 5500);  // STEP 5: SURPRISE IMAGE
-    const t6 = setTimeout(() => setRevealStep(6), 6900);  // STEP 6: FINAL MESSAGE
+    const t5 = surprisePhoto ? setTimeout(() => setRevealStep(5), 5500) : null;  // STEP 5: SURPRISE IMAGE (if configured)
+    const t6 = setTimeout(() => setRevealStep(6), surprisePhoto ? 6900 : 5400);  // STEP 6: FINAL MESSAGE
 
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
       clearTimeout(t3);
       clearTimeout(t4);
-      clearTimeout(t5);
+      if (t5) clearTimeout(t5);
       clearTimeout(t6);
     };
-  }, [hasStarted, prefersReducedMotion]);
+  }, [hasStarted, prefersReducedMotion, surprisePhoto]);
 
   const handleReplay = (e: React.MouseEvent) => {
     e.stopPropagation();

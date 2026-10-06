@@ -758,7 +758,7 @@ apiRouter.post("/publish", async (req, res) => {
         year: draft.surprisePhoto.year,
         editState: draft.surprisePhoto.editState
       } : null,
-      secretPhotos: Array.isArray(draft.secretPhotos) ? draft.secretPhotos.map((p) => ({
+      secretPhotos: Array.isArray(draft.secretPhotos) ? draft.secretPhotos.slice(0, 5).map((p) => ({
         id: p.id,
         previewUrl: p.previewUrl,
         caption: p.caption,
@@ -766,7 +766,7 @@ apiRouter.post("/publish", async (req, res) => {
         year: p.year,
         aspect: p.aspect,
         editState: p.editState
-      })) : void 0,
+      })) : [],
       finalMessage: draft.finalMessage || "Wishing you a magnificent year ahead.",
       music: draft.music ? {
         url: draft.music.url,

@@ -81,6 +81,7 @@ export const ExperienceModal: React.FC<ExperienceModalProps> = ({
             photos={samplePhotos}
             heroPhotoId={sampleBirthdayData.heroMemoryId}
             innerCirclePhotoIds={sampleBirthdayData.innerCircleMemoryIds}
+            secretPhotos={sampleSurprise ? [sampleSurprise] : []}
             surprisePhoto={sampleSurprise}
             finalMessage={sampleBirthdayData.finalMessage}
             senderName="Jordan & The Crew"

@@ -19,7 +19,6 @@ import { PublishedRecipientExperience } from './components/experience/PublishedR
 import { getPublishedExperience, fetchPublishedExperience } from './services/publishService';
 import { PublishedExperienceSnapshot } from './types';
 import { AlertCircle, ArrowLeft, Plus, Sparkles } from 'lucide-react';
-import { CinematicCursor } from './components/common/CinematicCursor';
 import { ScrollReveal } from './components/common/ScrollReveal';
 
 function getExperienceIdFromLocation(): string | null {
@@ -316,11 +315,5 @@ export default function App() {
     );
   };
 
-  return (
-    <>
-      {/* Desktop Cinematic Magnetic Animated Cursor System */}
-      <CinematicCursor />
-      {renderContent()}
-    </>
-  );
+  return renderContent();
 }

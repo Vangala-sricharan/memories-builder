@@ -61,6 +61,7 @@ export const BirthdayCreator: React.FC<BirthdayCreatorProps> = ({
     photos: [],
     heroPhotoId: undefined,
     innerCirclePhotoIds: [],
+    secretPhotos: [],
     surprisePhoto: null,
     finalMessage: 'May the year ahead bring the same unyielding joy and wonder that you bring into the lives of everyone lucky enough to know you.',
     music: null,
@@ -379,8 +380,20 @@ export const BirthdayCreator: React.FC<BirthdayCreatorProps> = ({
             onSelectHeroPhoto={(heroPhotoId) => updateDraft({ heroPhotoId })}
             innerCirclePhotoIds={draft.innerCirclePhotoIds}
             onToggleInnerCirclePhoto={handleToggleInnerCirclePhoto}
-            surprisePhoto={draft.surprisePhoto}
-            onUpdateSurprisePhoto={(surprisePhoto) => updateDraft({ surprisePhoto })}
+            surprisePhoto={draft.secretPhotos?.[0] || draft.surprisePhoto}
+            secretPhotos={draft.secretPhotos || []}
+            onUpdateSecretPhotos={(secretPhotos) => {
+              updateDraft({
+                secretPhotos,
+                surprisePhoto: secretPhotos[0] || null,
+              });
+            }}
+            onUpdateSurprisePhoto={(surprisePhoto) => {
+              updateDraft({
+                secretPhotos: draft.secretPhotos && draft.secretPhotos.length > 1 ? draft.secretPhotos : (surprisePhoto ? [surprisePhoto] : []),
+                surprisePhoto,
+              });
+            }}
             onNext={() => setCurrentStep('music')}
             onBack={() => setCurrentStep('photos')}
           />

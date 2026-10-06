@@ -5,6 +5,7 @@ import {
   UploadedMusic, 
   SavedDraftSummary 
 } from '../types';
+import { normalizeDraftData } from '../utils/normalizeExperienceData';
 
 const DB_NAME = 'MemoriesBuilderDraftDB';
 const DB_VERSION = 1;
@@ -122,9 +123,12 @@ export async function saveDraft(
       console.warn('IndexedDB unavailable, falling back to lightweight local storage', err);
     }
 
+    // Normalize draft to canonical data model before saving
+    const canonicalDraft = normalizeDraftData(draft);
+
     // 1. Process and save media files to IndexedDB if available
     const serializedPhotos = await Promise.all(
-      draft.photos.map(async (photo) => {
+      canonicalDraft.photos.map(async (photo) => {
         let hasStoredBlob = false;
 
         if (db && photo.file) {
@@ -158,45 +162,58 @@ export async function saveDraft(
       })
     );
 
-    // 2. Process surprise photo
-    let serializedSurprise = null;
-    if (draft.surprisePhoto) {
-      let hasStoredBlob = false;
-      if (db && draft.surprisePhoto.file) {
-        try {
-          await storeMediaBlob(db, `surprise_${draft.surprisePhoto.id}`, draft.surprisePhoto.file);
-          hasStoredBlob = true;
-        } catch (e) {
-          console.warn('Failed to store surprise blob in IndexedDB:', e);
+    // 2. Process secret photos (canonical 0 to 5)
+    const serializedSecrets = await Promise.all(
+      (canonicalDraft.secretPhotos || []).map(async (secret) => {
+        let hasStoredBlob = false;
+        if (db && secret.file) {
+          try {
+            await storeMediaBlob(db, `secret_${secret.id}`, secret.file);
+            hasStoredBlob = true;
+          } catch (e) {
+            console.warn('Failed to store secret blob in IndexedDB:', e);
+          }
         }
-      }
-      serializedSurprise = {
-        id: draft.surprisePhoto.id,
-        caption: draft.surprisePhoto.caption,
-        aspect: draft.surprisePhoto.aspect,
-        editState: draft.surprisePhoto.editState,
-        previewUrl: draft.surprisePhoto.previewUrl?.startsWith('data:') ? draft.surprisePhoto.previewUrl : '',
-        originalPreviewUrl: draft.surprisePhoto.originalPreviewUrl?.startsWith('data:') ? draft.surprisePhoto.originalPreviewUrl : '',
-        hasStoredBlob,
-      };
-    }
+        if (db && secret.originalFile) {
+          try {
+            await storeMediaBlob(db, `secret_orig_${secret.id}`, secret.originalFile);
+          } catch (e) {
+            console.warn('Failed to store original secret blob in IndexedDB:', e);
+          }
+        }
+        return {
+          id: secret.id,
+          caption: secret.caption,
+          location: secret.location,
+          year: secret.year,
+          aspect: secret.aspect,
+          editState: secret.editState,
+          previewUrl: secret.previewUrl && secret.previewUrl.startsWith('data:') ? secret.previewUrl : '',
+          originalPreviewUrl: secret.originalPreviewUrl && secret.originalPreviewUrl.startsWith('data:') ? secret.originalPreviewUrl : '',
+          hasStoredBlob,
+        };
+      })
+    );
+
+    // Legacy surprisePhoto serialization (uses first secret if available)
+    const serializedSurprise = serializedSecrets[0] || null;
 
     // 3. Process uploaded music
     let serializedMusic = null;
-    if (draft.music) {
-      if (db && draft.music.file) {
+    if (canonicalDraft.music) {
+      if (db && canonicalDraft.music.file) {
         try {
-          await storeMediaBlob(db, `music_${draftId}`, draft.music.file);
+          await storeMediaBlob(db, `music_${draftId}`, canonicalDraft.music.file);
         } catch (e) {
           console.warn('Failed to store music blob in IndexedDB:', e);
         }
       }
       serializedMusic = {
-        fileName: draft.music.fileName,
-        fileSizeFormatted: draft.music.fileSizeFormatted,
-        duration: draft.music.duration,
-        url: draft.music.url?.startsWith('data:') ? draft.music.url : '',
-        isSample: draft.music.isSample,
+        fileName: canonicalDraft.music.fileName,
+        fileSizeFormatted: canonicalDraft.music.fileSizeFormatted,
+        duration: canonicalDraft.music.duration,
+        url: canonicalDraft.music.url?.startsWith('data:') ? canonicalDraft.music.url : '',
+        isSample: canonicalDraft.music.isSample,
       };
     }
 
@@ -208,8 +225,9 @@ export async function saveDraft(
       updatedAt: now,
       currentStep,
       draftData: {
-        ...draft,
+        ...canonicalDraft,
         photos: serializedPhotos,
+        secretPhotos: serializedSecrets,
         surprisePhoto: serializedSurprise,
         music: serializedMusic,
       },
@@ -354,9 +372,55 @@ export async function loadDraft(
       })
     );
 
-    // 2. Rehydrate surprise photo
-    let restoredSurprise: UploadedPhoto | null = null;
-    if (draftData.surprisePhoto) {
+    // 2. Rehydrate secret photos (canonical 0 to 5)
+    let restoredSecrets: UploadedPhoto[] = [];
+    const rawSecrets = draftData.secretPhotos;
+
+    if (Array.isArray(rawSecrets) && rawSecrets.length > 0) {
+      restoredSecrets = await Promise.all(
+        rawSecrets.map(async (sp: any, idx: number) => {
+          let file: File | undefined = undefined;
+          let originalFile: File | undefined = undefined;
+          let previewUrl = sp.previewUrl || '';
+          let originalPreviewUrl = sp.originalPreviewUrl || '';
+
+          if (db) {
+            const blob = await getMediaBlob(db, `secret_${sp.id}`);
+            if (blob) {
+              file = new File([blob], `secret-${sp.id}.webp`, { type: blob.type || 'image/webp' });
+              previewUrl = URL.createObjectURL(blob);
+            }
+
+            const origBlob = await getMediaBlob(db, `secret_orig_${sp.id}`);
+            if (origBlob) {
+              originalFile = new File([origBlob], `secret-orig-${sp.id}.webp`, { type: origBlob.type || 'image/webp' });
+              originalPreviewUrl = URL.createObjectURL(origBlob);
+            } else if (file) {
+              originalFile = file;
+              originalPreviewUrl = previewUrl;
+            }
+          }
+
+          if (!previewUrl) {
+            previewUrl = sp.previewUrl || '';
+          }
+
+          return {
+            id: sp.id || `restored-secret-${idx}`,
+            file,
+            originalFile,
+            previewUrl,
+            originalPreviewUrl: originalPreviewUrl || previewUrl,
+            caption: sp.caption || '',
+            location: sp.location,
+            year: sp.year,
+            aspect: sp.aspect || '16:9',
+            editState: sp.editState,
+          };
+        })
+      );
+    } else if (draftData.surprisePhoto) {
+      // Legacy backwards-compatibility rehydration
       const sp = draftData.surprisePhoto;
       let file: File | undefined = undefined;
       let originalFile: File | undefined = undefined;
@@ -373,16 +437,20 @@ export async function loadDraft(
         }
       }
 
-      restoredSurprise = {
-        id: sp.id,
-        file,
-        originalFile,
-        previewUrl,
-        originalPreviewUrl,
-        caption: sp.caption || '',
-        aspect: sp.aspect || '16:9',
-        editState: sp.editState,
-      };
+      restoredSecrets = [
+        {
+          id: sp.id || 'restored-secret-legacy',
+          file,
+          originalFile,
+          previewUrl,
+          originalPreviewUrl,
+          caption: sp.caption || '',
+          location: sp.location,
+          year: sp.year,
+          aspect: sp.aspect || '16:9',
+          editState: sp.editState,
+        },
+      ];
     }
 
     // 3. Rehydrate music
@@ -410,13 +478,14 @@ export async function loadDraft(
       };
     }
 
-    // 4. Build complete restored draft
-    const fullDraft: BirthdayExperienceDraft = {
+    // 4. Build complete normalized restored draft
+    const fullDraft: BirthdayExperienceDraft = normalizeDraftData({
       ...draftData,
       photos: restoredPhotos,
-      surprisePhoto: restoredSurprise,
+      secretPhotos: restoredSecrets,
+      surprisePhoto: restoredSecrets[0] || null,
       music: restoredMusic,
-    };
+    });
 
     // Update memory cache
     memoryDraftCache = {
