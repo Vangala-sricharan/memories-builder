@@ -59,6 +59,12 @@ export default function App() {
     const handleLocationChange = () => {
       const id = getExperienceIdFromLocation();
       setActiveExperienceId(id);
+      if (id && typeof window !== 'undefined') {
+        if ('scrollRestoration' in window.history) {
+          window.history.scrollRestoration = 'manual';
+        }
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+      }
     };
 
     window.addEventListener('popstate', handleLocationChange);
@@ -74,6 +80,13 @@ export default function App() {
       setLoadedSnapshot(null);
       setLoadError(false);
       return;
+    }
+
+    if (typeof window !== 'undefined') {
+      if ('scrollRestoration' in window.history) {
+        window.history.scrollRestoration = 'manual';
+      }
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
     }
 
     const cached = getPublishedExperience(activeExperienceId);
@@ -119,7 +132,11 @@ export default function App() {
 
   const navigateToPublished = (id: string) => {
     if (typeof window !== 'undefined') {
+      if ('scrollRestoration' in window.history) {
+        window.history.scrollRestoration = 'manual';
+      }
       window.history.pushState(null, '', `/b/${id}`);
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
     }
     setActiveExperienceId(id);
     setIsCreatorOpen(false);

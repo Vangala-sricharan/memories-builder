@@ -103,6 +103,35 @@ export const BirthdayStoryExperience: React.FC<BirthdayStoryExperienceProps> = (
   // Selected photo viewer index in Memory Sequence
   const [activeMemoryIndex, setActiveMemoryIndex] = useState(0);
 
+  // Standalone experience initialization: ensure scroll position starts at top
+  useEffect(() => {
+    if (!isStandalone || typeof window === 'undefined') return;
+
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+
+    const resetToTop = () => {
+      const html = document.documentElement;
+      const prevBehavior = html.style.scrollBehavior;
+      html.style.scrollBehavior = 'auto';
+      window.scrollTo(0, 0);
+      html.scrollTop = 0;
+      document.body.scrollTop = 0;
+      html.style.scrollBehavior = prevBehavior;
+    };
+
+    resetToTop();
+
+    const raf = requestAnimationFrame(resetToTop);
+    const timer = setTimeout(resetToTop, 50);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(timer);
+    };
+  }, [isStandalone, experienceId]);
+
   // Fullscreen high-resolution photo viewer modal state
   const [fullscreenViewer, setFullscreenViewer] = useState<{ photo: UploadedPhoto; index: number } | null>(null);
 

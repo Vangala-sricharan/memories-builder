@@ -72,6 +72,22 @@
       ]
     }
     </script>
+    <script>
+      (function() {
+        try {
+          var p = window.location.pathname || '';
+          var h = window.location.hash || '';
+          var s = window.location.search || '';
+          var isPremiere = p.indexOf('/b/') === 0 || h.indexOf('#b/') === 0 || h.indexOf('#/b/') === 0 || s.indexOf('b=') !== -1;
+          if (isPremiere) {
+            if ('scrollRestoration' in history) {
+              history.scrollRestoration = 'manual';
+            }
+            window.scrollTo(0, 0);
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body class="bg-[#080808] text-[#FFFFFF] font-sans antialiased selection:bg-[#E50914] selection:text-white overflow-x-hidden">
     <div id="root"></div>

@@ -34,6 +34,51 @@ export const PublishedRecipientExperience: React.FC<PublishedRecipientExperience
   const [copiedLink, setCopiedLink] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Guarantees that opening/refreshing a published Premiere experience starts strictly at scroll position 0
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+
+    const resetToTop = () => {
+      const html = document.documentElement;
+      const prevBehavior = html.style.scrollBehavior;
+      html.style.scrollBehavior = 'auto';
+      window.scrollTo(0, 0);
+      html.scrollTop = 0;
+      document.body.scrollTop = 0;
+      html.style.scrollBehavior = prevBehavior;
+    };
+
+    // 1. Immediate reset
+    resetToTop();
+
+    // 2. Guard against layout mutations and delayed browser scroll restoration
+    const raf1 = requestAnimationFrame(() => {
+      resetToTop();
+      const raf2 = requestAnimationFrame(() => {
+        resetToTop();
+      });
+      return () => cancelAnimationFrame(raf2);
+    });
+
+    const timer = setTimeout(resetToTop, 50);
+
+    // 3. Handle browser pageshow (refresh, new tab, bfcache restore)
+    const handlePageShow = () => {
+      resetToTop();
+    };
+    window.addEventListener('pageshow', handlePageShow);
+
+    return () => {
+      cancelAnimationFrame(raf1);
+      clearTimeout(timer);
+      window.removeEventListener('pageshow', handlePageShow);
+    };
+  }, [snapshot.experienceId]);
+
   // Monitor expiration periodically
   useEffect(() => {
     const checkExpiry = () => {
